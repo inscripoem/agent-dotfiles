@@ -79,3 +79,7 @@ node scripts/sync-agent-config.js --help   # Show full usage
     - lint / build
     - API testing
     - Frontend browser testing (Playwright / browser-use)
+
+## See Also
+
+- [inspirations.md](Inspirations)

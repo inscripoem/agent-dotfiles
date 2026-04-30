@@ -79,3 +79,7 @@ node scripts/sync-agent-config.js --help   # 查看完整用法
     - lint/build
     - 接口测试
     - 前端浏览器环境测试（playwright/browser-use）
+
+## 另请参阅
+
+- [inspirations.md](灵感来源)
