@@ -42,7 +42,9 @@ Inserts the template into the global instructions of supported agents using mark
 `AGENTS.template.md` covers the following categories:
 
 - **General** — identity protocol, planning before execution, documentation-first approach
+- **Web Content Retrieval** — choose `webfetch` for summaries or `curl` for raw source
 - **Change Impact Assessment** — using GitNexus before modifications, keeping docs in sync
+- **Coding Principles and Self-Review** — flat explicit code, minimal coupling, regenerability, and post-task self-review checklist
 - **Project Setup** — always use framework scaffolding; use CLI for dependency management
 - **Language-Specific** — Go (`go mod tidy` over `go get`)
 - **Version Control** — avoid destructive Git operations without explicit user confirmation

@@ -20,7 +20,68 @@ Prohibited commands include, but are not limited to:
 ## Documentation First
 Before implementing code that depends on a library, framework, or API not already established in this project, or when editing configuration for tools whose schema you are uncertain about, query **Context7 MCP** for the latest documentation to verify correct field names, usage patterns, and configuration options.
 
+## Web Content Retrieval
+
+Use `webfetch` for summarized webpage content and `curl` for raw HTML source; prefer `curl` when exact fidelity is required.
+
 ## Change Impact Assessment
 Before modifying existing functionality, use **GitNexus MCP** to analyze the impact scope. Identify all affected files, call sites, and dependencies that require updates to ensure the change is complete and consistent.
 
 For documentation changes, search the repository for references to the document title, key terms, or file paths, and update all linked or related documents to maintain consistency.
+
+## Coding Principles and Self-Review
+
+### Structure
+
+- Use a consistent, predictable project layout.
+- Group code by feature or domain; keep shared utilities minimal and well-justified.
+- Create simple, obvious entry points.
+- Before scaffolding multiple files, identify shared structure first. Use framework-native composition patterns (layouts, base templates, providers, shared components) for elements that appear across pages. Duplication that requires the same fix in multiple places is a code smell, not a pattern to preserve.
+
+### Architecture
+
+- Prefer flat, explicit code over abstractions or deep hierarchies.
+- Avoid clever patterns, metaprogramming, and unnecessary indirection.
+- Minimize coupling so files can be safely regenerated or rewritten without cascading breakage.
+
+### Functions and Modules
+
+- Keep control flow linear and simple.
+- Use small-to-medium functions; avoid deeply nested logic.
+- Pass state explicitly; avoid globals and hidden dependencies.
+
+### Naming and Comments
+
+- Use descriptive-but-simple names.
+- Comment only to note invariants, assumptions, or external requirements.
+
+### Logging and Errors
+
+- Emit detailed, structured logs at key boundaries.
+- Make errors explicit and informative.
+
+### Regenerability
+
+- Write code so any file or module can be rewritten from scratch without breaking the system.
+- Prefer clear, declarative configuration (JSON, YAML, TOML, etc.) over imperative setup.
+
+### Modifications
+
+- When extending or refactoring, follow existing patterns in the codebase.
+- Prefer full-file rewrites over micro-edits unless told otherwise.
+
+### Quality
+
+- Favor deterministic, testable behavior.
+- Keep tests simple and focused on verifying observable behavior.
+
+### Self-Review Protocol
+
+Before marking a task as complete, perform a self-review:
+
+- Verify alignment with the Coding Principles above.
+- Identify redundant code or files that can be deleted.
+- Flag poorly-named identifiers for renaming.
+- Note structural issues that warrant restructuring.
+- Categorize findings by priority: High / Medium / Low.
+- Do not change things for the sake of changing. Only modify if it genuinely improves quality or alignment.
