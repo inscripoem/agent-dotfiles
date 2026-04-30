@@ -1,6 +1,6 @@
 # Agent Dotfiles
 
-[English](README.md) | 中文
+[English](./README.md) | 中文
 
 自用 AI Coding Agent 规范与实践合集。一部分根据自身工作流定制，一部分整理自社区经验。
 
@@ -67,3 +67,13 @@ node scripts/sync-agent-config.js --help   # 查看完整用法
 - 非破坏性 — 不会覆盖文件中已有其他配置
 - `--delete` / `-d` 可移除标记块，保留其他自定义配置
 - `--help` / `-h` 显示用法说明
+
+## 未来计划
+
+- [ ] (Command) 同步不同语言的Readme，基于一个版本更新
+- [ ] (Instruction) （对于brownfield）不要对之前的api有破坏性修改，防止之前的用户连不上
+- [ ] 将每个session完成的部分记录下来
+- [ ] 所有代码都应该经过测试
+    - lint/build
+    - 接口测试
+    - 前端浏览器环境测试（playwright/browser-use）

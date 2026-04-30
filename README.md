@@ -1,6 +1,6 @@
 # Agent Dotfiles
 
-English | [中文](README.zh.md)
+English | [中文](./README.zh.md)
 
 A personal collection of conventions and best practices for AI coding agents. Partly tailored for my own workflows, partly collected from the community.
 
@@ -67,3 +67,13 @@ node scripts/sync-agent-config.js --help   # Show full usage
 - Non-destructive — never overwrites unrelated config
 - `--delete` / `-d` removes managed blocks while preserving other custom config
 - `--help` / `-h` shows usage information
+
+## Roadmap
+
+- [ ] (Command) Sync READMEs across languages, updating from a single source
+- [ ] (Instruction) For brownfield projects, avoid breaking changes to existing APIs to prevent disrupting current users
+- [ ] Record completed items from each session
+- [ ] All code should be tested
+    - lint / build
+    - API testing
+    - Frontend browser testing (Playwright / browser-use)
