@@ -15,6 +15,12 @@ A personal collection of conventions and best practices for AI coding agents. Pa
 
 ### Prerequisites
 
+Install dependencies:
+
+```bash
+bun install
+```
+
 Install the following MCP servers used by the rules in `AGENTS.template.md`:
 
 - [Context7](https://github.com/upstash/context7) — fetch up-to-date library docs
@@ -26,16 +32,28 @@ Install the following MCP servers used by the rules in `AGENTS.template.md`:
 node scripts/sync-agent-config.js
 ```
 
-Inserts the template into the global instructions of supported agents using marker blocks, so it coexists with your existing config and updates in place on subsequent runs.
+Opens interactive multi-select with all agents selected by default. Use `--agents` to skip interactive mode.
+
+```bash
+# Interactive (default: all selected)
+node scripts/sync-agent-config.js
+
+# Non-interactive: sync all agents
+node scripts/sync-agent-config.js --agents all
+
+# Non-interactive: sync specific agents
+node scripts/sync-agent-config.js --agents claude,codex
+```
 
 **Supported agents:**
 
-| Agent | Target Path |
-|-------|-------------|
-| Claude Code | `~/.claude/CLAUDE.md` |
-| Codex (OpenAI) | `~/.codex/AGENTS.md` |
-| Gemini CLI | `~/.gemini/GEMINI.md` |
-| OpenCode | `~/.config/opencode/AGENTS.md` |
+| ID | Agent | Target Path |
+|----|-------|-------------|
+| `claude` | Claude Code | `~/.claude/CLAUDE.md` |
+| `codex` | Codex (OpenAI) | `~/.codex/AGENTS.md` |
+| `gemini` | Gemini CLI | `~/.gemini/GEMINI.md` |
+| `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
+| `trae-cn` | Trae CN | `~/.trae-cn/rules/agent-dotfiles.md` |
 
 ## What's Inside the Template
 
@@ -58,15 +76,22 @@ For the full rules, open [`AGENTS.template.md`](AGENTS.template.md).
 Syncs `AGENTS.template.md` into the global instruction files of supported agents.
 
 ```bash
-node scripts/sync-agent-config.js        # Sync / update
-node scripts/sync-agent-config.js --delete # Remove synced marker blocks
-node scripts/sync-agent-config.js --help   # Show full usage
+node scripts/sync-agent-config.js                          # Interactive (default: all selected)
+node scripts/sync-agent-config.js --agents all             # Sync all (non-interactive)
+node scripts/sync-agent-config.js --agents claude,codex    # Sync specific agents (non-interactive)
+node scripts/sync-agent-config.js --delete                 # Remove all managed blocks
+node scripts/sync-agent-config.js --delete --agents claude # Remove from specific agents
+node scripts/sync-agent-config.js --help                   # Show full usage
 ```
 
+- Default: interactive multi-select with all agents selected
+- `--agents`: skips interactive, syncs specified agents (or "all")
+- Coverage behavior: unselected agents get their blocks removed
 - Uses marked blocks (`<!-- AGENT_DOTFILES_START -->` … `<!-- AGENT_DOTFILES_END -->`)
 - Expands `~` to the real home directory (cross-platform)
 - Updates existing blocks in place; appends at EOF if absent
 - Non-destructive — never overwrites unrelated config
+- Trae CN: adds YAML frontmatter for rule activation (`alwaysApply: true`)
 - `--delete` / `-d` removes managed blocks while preserving other custom config
 - `--help` / `-h` shows usage information
 

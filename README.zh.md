@@ -15,6 +15,12 @@
 
 ### 先决条件
 
+安装依赖：
+
+```bash
+bun install
+```
+
 `AGENTS.template.md` 中的规则依赖以下 MCP 服务器，请提前安装：
 
 - [Context7](https://github.com/upstash/context7) — 获取最新库文档
@@ -26,16 +32,28 @@
 node scripts/sync-agent-config.js
 ```
 
-脚本通过标记文本块将模板同步到各 Agent 的全局提示词文件中，与其他配置共存，重复运行自动更新已有块。
+打开交互式多选界面，默认全选所有 Agent。使用 `--agents` 跳过交互模式。
+
+```bash
+# 交互式（默认全选）
+node scripts/sync-agent-config.js
+
+# 非交互：同步所有 Agent
+node scripts/sync-agent-config.js --agents all
+
+# 非交互：同步指定 Agent
+node scripts/sync-agent-config.js --agents claude,codex
+```
 
 **支持的 Agent：**
 
-| Agent | 目标路径 |
-|-------|---------|
-| Claude Code | `~/.claude/CLAUDE.md` |
-| Codex (OpenAI) | `~/.codex/AGENTS.md` |
-| Gemini CLI | `~/.gemini/GEMINI.md` |
-| OpenCode | `~/.config/opencode/AGENTS.md` |
+| ID | Agent | 目标路径 |
+|----|-------|---------|
+| `claude` | Claude Code | `~/.claude/CLAUDE.md` |
+| `codex` | Codex (OpenAI) | `~/.codex/AGENTS.md` |
+| `gemini` | Gemini CLI | `~/.gemini/GEMINI.md` |
+| `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
+| `trae-cn` | Trae CN | `~/.trae-cn/rules/agent-dotfiles.md` |
 
 ## 模板内容概览
 
@@ -58,15 +76,22 @@ node scripts/sync-agent-config.js
 将 `AGENTS.template.md` 同步到各支持 Agent 的全局提示词文件中。
 
 ```bash
-node scripts/sync-agent-config.js        # 同步 / 更新
-node scripts/sync-agent-config.js --delete # 删除已同步的标记块
-node scripts/sync-agent-config.js --help   # 查看完整用法
+node scripts/sync-agent-config.js                          # 交互式（默认全选）
+node scripts/sync-agent-config.js --agents all             # 同步所有（非交互）
+node scripts/sync-agent-config.js --agents claude,codex    # 同步指定（非交互）
+node scripts/sync-agent-config.js --delete                 # 移除所有已同步的标记块
+node scripts/sync-agent-config.js --delete --agents claude # 移除指定 Agent 的标记块
+node scripts/sync-agent-config.js --help                   # 查看完整用法
 ```
 
+- 默认：交互式多选，默认全选所有 Agent
+- `--agents`：跳过交互，同步指定 Agent（或 "all"）
+- 覆盖行为：未选中的 Agent 将移除其已同步的标记块
 - 使用标记块（`<!-- AGENT_DOTFILES_START -->` … `<!-- AGENT_DOTFILES_END -->`）管理内容
 - 自动展开 `~` 为实际用户目录（跨平台兼容）
 - 已有标记块时原地更新；无块时追加到文件末尾
 - 非破坏性 — 不会覆盖文件中已有其他配置
+- Trae CN：自动添加 YAML frontmatter 以启用规则（`alwaysApply: true`）
 - `--delete` / `-d` 可移除标记块，保留其他自定义配置
 - `--help` / `-h` 显示用法说明
 
