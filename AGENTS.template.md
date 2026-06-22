@@ -17,6 +17,8 @@ Never use destructive or mutating Git commands unless I explicitly instruct you.
 Prohibited commands include, but are not limited to:
 `git commit`, `git reset`, `git rebase`, `git cherry-pick`, `git merge`, `git push`, `git branch -D`, `git tag -d`, `git stash drop`, `git clean -fd`, and any force operations (`-f`, `--force`).
 
+When committing changes, always commit entire files rather than partial hunks or slices. Use `git add <file>` instead of `git add -p` or interactive staging.
+
 ## Documentation First
 Before implementing code that depends on a library, framework, or API not already established in this project, or when editing configuration for tools whose schema you are uncertain about, query **Context7 MCP** for the latest documentation to verify correct field names, usage patterns, and configuration options.
 

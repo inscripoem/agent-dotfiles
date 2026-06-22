@@ -47,7 +47,7 @@ Inserts the template into the global instructions of supported agents using mark
 - **Coding Principles and Self-Review** — flat explicit code, minimal coupling, regenerability, and post-task self-review checklist
 - **Project Setup** — always use framework scaffolding; use CLI for dependency management
 - **Language-Specific** — Go (`go mod tidy` over `go get`)
-- **Version Control** — avoid destructive Git operations without explicit user confirmation
+- **Version Control** — avoid destructive Git operations without explicit user confirmation; commit whole files, not partial slices
 
 For the full rules, open [`AGENTS.template.md`](AGENTS.template.md).
 
