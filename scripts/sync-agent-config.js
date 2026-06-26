@@ -10,7 +10,7 @@
  *   - Codex (OpenAI) → ~/.codex/AGENTS.md
  *   - Gemini CLI     → ~/.gemini/GEMINI.md
  *   - OpenCode       → ~/.config/opencode/AGENTS.md
- *   - Trae CN        → ~/.trae-cn/rules/agent-dotfiles.md
+ *   - Trae CN        → ~/.trae-cn/user_rules/agent-dotfiles.md
  *
  * Usage:
  *   node scripts/sync-agent-config.js                    # Interactive (default: all selected)
@@ -32,18 +32,12 @@ const TARGETS = [
   { id: 'codex',   agent: 'Codex',          path: '~/.codex/AGENTS.md' },
   { id: 'gemini',  agent: 'Gemini CLI',     path: '~/.gemini/GEMINI.md' },
   { id: 'opencode',agent: 'OpenCode',       path: '~/.config/opencode/AGENTS.md' },
-  { id: 'trae-cn', agent: 'Trae CN',        path: '~/.trae-cn/rules/agent-dotfiles.md', traeRule: true },
+  { id: 'trae-cn', agent: 'Trae CN',        path: '~/.trae-cn/user_rules/agent-dotfiles.md' },
 ];
 
 const START_MARKER = '<!-- AGENT_DOTFILES_START -->';
 const END_MARKER   = '<!-- AGENT_DOTFILES_END -->';
 const MANAGE_NOTICE = '<!-- Source: AGENTS.template.md | Managed by scripts/sync-agent-config.js. Do not edit this block manually. -->';
-
-const TRAE_FRONTMATTER = `---
-description: "Agent Dotfiles global rules"
-alwaysApply: true
----
-`;
 
 function printHelp() {
   console.log(`
@@ -74,7 +68,7 @@ Supported agents:
   codex      Codex          → ~/.codex/AGENTS.md
   gemini     Gemini CLI     → ~/.gemini/GEMINI.md
   opencode   OpenCode       → ~/.config/opencode/AGENTS.md
-  trae-cn    Trae CN        → ~/.trae-cn/rules/agent-dotfiles.md
+  trae-cn    Trae CN        → ~/.trae-cn/user_rules/agent-dotfiles.md
 `);
 }
 
@@ -85,12 +79,8 @@ function expandHome(filePath) {
   return filePath;
 }
 
-function wrapContent(template, isTraeRule) {
-  const block = `${START_MARKER}\n${MANAGE_NOTICE}\n\n${template}\n${END_MARKER}`;
-  if (isTraeRule) {
-    return TRAE_FRONTMATTER + '\n' + block;
-  }
-  return block;
+function wrapContent(template) {
+  return `${START_MARKER}\n${MANAGE_NOTICE}\n\n${template}\n${END_MARKER}`;
 }
 
 function removeBlock(targetPath) {
@@ -134,12 +124,12 @@ function removeBlock(targetPath) {
   return { action: 'removed', message: 'Block removed' };
 }
 
-function syncFile(targetPath, template, isTraeRule) {
+function syncFile(targetPath, template) {
   if (fs.existsSync(targetPath) && fs.lstatSync(targetPath).isSymbolicLink()) {
     fs.unlinkSync(targetPath);
   }
 
-  const wrapped = wrapContent(template, isTraeRule);
+  const wrapped = wrapContent(template);
 
   if (!fs.existsSync(targetPath)) {
     fs.writeFileSync(targetPath, wrapped + '\n', 'utf8');
@@ -345,7 +335,7 @@ async function main() {
         console.log(`  Created directory: ${targetDir}`);
       }
 
-      const action = syncFile(targetPath, template, target.traeRule);
+      const action = syncFile(targetPath, template);
       const icon = action === 'updated' ? '~' : '+';
       console.log(`  ${icon} ${target.agent}: Block ${action.padEnd(8)} (${target.path})`);
     } catch (err) {

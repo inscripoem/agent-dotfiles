@@ -53,7 +53,7 @@ node scripts/sync-agent-config.js --agents claude,codex
 | `codex` | Codex (OpenAI) | `~/.codex/AGENTS.md` |
 | `gemini` | Gemini CLI | `~/.gemini/GEMINI.md` |
 | `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
-| `trae-cn` | Trae CN | `~/.trae-cn/rules/agent-dotfiles.md` |
+| `trae-cn` | Trae CN | `~/.trae-cn/user_rules/agent-dotfiles.md` |
 
 ## 模板内容概览
 
@@ -91,7 +91,6 @@ node scripts/sync-agent-config.js --help                   # 查看完整用法
 - 自动展开 `~` 为实际用户目录（跨平台兼容）
 - 已有标记块时原地更新；无块时追加到文件末尾
 - 非破坏性 — 不会覆盖文件中已有其他配置
-- Trae CN：自动添加 YAML frontmatter 以启用规则（`alwaysApply: true`）
 - `--delete` / `-d` 可移除标记块，保留其他自定义配置
 - `--help` / `-h` 显示用法说明
 

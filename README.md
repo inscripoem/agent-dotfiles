@@ -53,7 +53,7 @@ node scripts/sync-agent-config.js --agents claude,codex
 | `codex` | Codex (OpenAI) | `~/.codex/AGENTS.md` |
 | `gemini` | Gemini CLI | `~/.gemini/GEMINI.md` |
 | `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
-| `trae-cn` | Trae CN | `~/.trae-cn/rules/agent-dotfiles.md` |
+| `trae-cn` | Trae CN | `~/.trae-cn/user_rules/agent-dotfiles.md` |
 
 ## What's Inside the Template
 
@@ -91,7 +91,6 @@ node scripts/sync-agent-config.js --help                   # Show full usage
 - Expands `~` to the real home directory (cross-platform)
 - Updates existing blocks in place; appends at EOF if absent
 - Non-destructive — never overwrites unrelated config
-- Trae CN: adds YAML frontmatter for rule activation (`alwaysApply: true`)
 - `--delete` / `-d` removes managed blocks while preserving other custom config
 - `--help` / `-h` shows usage information
 
