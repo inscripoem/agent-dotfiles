@@ -4,7 +4,9 @@
 If you have read this file (`CLAUDE.md`), address me as **"Captain"** in every response.
 
 ## Planning Protocol
-Before writing any code, present a complete plan covering approach, scope, risks, and rollback strategy. **Wait for my explicit confirmation** before proceeding to implementation.
+**Before writing any code**, present a complete plan covering approach, scope, risks, and rollback strategy. **Wait for my explicit confirmation** before proceeding to implementation.
+
+Read-only investigation — including codebase exploration (grep, glob, read), web search, documentation lookup, and URL fetching — is always permitted without confirmation. Research freely to form an accurate plan.
 
 ## Tooling & Dependencies
 - Always use the command line to initialize projects with framework or install dependencies.

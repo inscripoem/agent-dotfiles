@@ -59,7 +59,7 @@ node scripts/sync-agent-config.js --agents claude,codex
 
 `AGENTS.template.md` covers the following categories:
 
-- **General** — identity protocol, planning before execution, documentation-first approach
+- **General** — identity protocol, planning before writing code (with read-only investigation freely permitted), documentation-first approach
 - **Web Content Retrieval** — choose `webfetch` for summaries or `curl` for raw source
 - **Change Impact Assessment** — using GitNexus before modifications, keeping docs in sync
 - **Coding Principles and Self-Review** — flat explicit code, minimal coupling, regenerability, and post-task self-review checklist
