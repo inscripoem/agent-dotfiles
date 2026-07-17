@@ -53,6 +53,7 @@ node scripts/sync-agent-config.js --agents claude,codex
 | `codex` | Codex (OpenAI) | `~/.codex/AGENTS.md` |
 | `gemini` | Gemini CLI | `~/.gemini/GEMINI.md` |
 | `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
+| `pi` | Pi (pi.dev) | `~/.pi/agent/AGENTS.md` |
 | `trae-cn` | Trae CN | `~/.trae-cn/user_rules/agent-dotfiles.md` |
 
 ## 模板内容概览

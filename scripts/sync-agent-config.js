@@ -10,6 +10,7 @@
  *   - Codex (OpenAI) → ~/.codex/AGENTS.md
  *   - Gemini CLI     → ~/.gemini/GEMINI.md
  *   - OpenCode       → ~/.config/opencode/AGENTS.md
+ *   - Pi (pi.dev)    → ~/.pi/agent/AGENTS.md
  *   - Trae CN        → ~/.trae-cn/user_rules/agent-dotfiles.md
  *
  * Usage:
@@ -32,6 +33,7 @@ const TARGETS = [
   { id: 'codex',   agent: 'Codex',          path: '~/.codex/AGENTS.md' },
   { id: 'gemini',  agent: 'Gemini CLI',     path: '~/.gemini/GEMINI.md' },
   { id: 'opencode',agent: 'OpenCode',       path: '~/.config/opencode/AGENTS.md' },
+  { id: 'pi',      agent: 'Pi (pi.dev)',    path: '~/.pi/agent/AGENTS.md' },
   { id: 'trae-cn', agent: 'Trae CN',        path: '~/.trae-cn/user_rules/agent-dotfiles.md' },
 ];
 
@@ -51,7 +53,7 @@ Usage:
 
 Options:
   -a, --agents <list>   Comma-separated agent IDs to sync (skips interactive)
-                        Available: claude, codex, gemini, opencode, trae-cn
+                        Available: claude, codex, gemini, opencode, pi, trae-cn
                         Use "all" to sync all agents without interactive prompt
   -d, --delete          Remove the managed block from each agent config
   -h, --help            Show this help message
@@ -68,6 +70,7 @@ Supported agents:
   codex      Codex          → ~/.codex/AGENTS.md
   gemini     Gemini CLI     → ~/.gemini/GEMINI.md
   opencode   OpenCode       → ~/.config/opencode/AGENTS.md
+  pi         Pi (pi.dev)    → ~/.pi/agent/AGENTS.md
   trae-cn    Trae CN        → ~/.trae-cn/user_rules/agent-dotfiles.md
 `);
 }
