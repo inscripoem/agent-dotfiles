@@ -62,6 +62,7 @@ node scripts/sync-agent-config.js --agents claude,codex
 
 - **General** — identity protocol, planning before writing code (with read-only investigation freely permitted), documentation-first approach
 - **Web Content Retrieval** — choose `webfetch` for summaries or `curl` for raw source
+- **Secret Security** — never read secrets into context; pipe values through shell ($(jq), source, $VAR)
 - **Change Impact Assessment** — using GitNexus before modifications, keeping docs in sync
 - **Coding Principles and Self-Review** — flat explicit code, minimal coupling, regenerability, and post-task self-review checklist
 - **Project Setup** — always use framework scaffolding; use CLI for dependency management

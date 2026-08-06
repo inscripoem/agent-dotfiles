@@ -21,6 +21,29 @@ Prohibited commands include, but are not limited to:
 
 When committing changes, always commit entire files rather than partial hunks or slices. Use `git add <file>` instead of `git add -p` or interactive staging.
 
+## Secret Security
+
+Never read secret values into AI context. This is a hard boundary.
+
+**Blocked:** reading, grepping, or globbing files named like
+`.env`, `*secret*`, `*token*`, `*auth*`, `*key*`, `*password*`,
+`id_*`, `*.pem`, `*.p12`, `*.key`, `~/.aws/*`, coding agent
+key configs (`~/.config/opencode/*key*`, etc.).
+
+**Permitted:** AI orchestrates the pipeline — value flows
+file→shell→command, never through AI context.
+
+- `jq 'keys' file` — inspect structure without values
+- `$(jq -r '.key' file)` — inline extraction, stdout to shell
+- `source .env && cmd` — shell reads, AI doesn't
+- `$PRE_SET_VAR` — user exported before session
+
+AI can verify key existence (`[ -n "$KEY" ]`), length
+(`${#KEY}`), or API response — all without the value.
+
+**Config:** guide user to run `export` / `aws configure` /
+`gh auth login` themselves. Don't write credential files.
+
 ## Documentation First
 Before implementing code that depends on a library, framework, or API not already established in this project, or when editing configuration for tools whose schema you are uncertain about, query **Context7 MCP** for the latest documentation to verify correct field names, usage patterns, and configuration options.
 
