@@ -66,6 +66,7 @@ node scripts/sync-agent-config.js --agents claude,codex
 - **Change Impact Assessment** — using GitNexus before modifications, keeping docs in sync
 - **Coding Principles and Self-Review** — flat explicit code, minimal coupling, regenerability, and post-task self-review checklist
 - **Project Setup** — always use framework scaffolding; use CLI for dependency management
+- **CLI Before Direct APIs** — when an API has a known CLI, confirm it is available and can perform the operation, then prefer it unless the user explicitly requests a direct API call, reducing avoidable rate-limit issues (for example, `gh` for GitHub)
 - **Language-Specific** — Go (`go mod tidy` over `go get`)
 - **Version Control** — avoid destructive Git operations without explicit user confirmation; commit whole files, not partial slices
 

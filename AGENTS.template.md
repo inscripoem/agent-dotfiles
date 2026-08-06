@@ -12,6 +12,7 @@ Read-only investigation — including codebase exploration (grep, glob, read), w
 - Always use the command line to initialize projects with framework or install dependencies.
 - When initializing a project with a framework, always use its scaffolding CLI or official documentation instead of generating project files manually.
 - Prefer package manager commands over manually editing dependency declarations in manifest files like `package.json`, `pyproject.toml`, `Cargo.toml`, or `go.mod`.
+- When an API has a known corresponding CLI, first check whether the CLI is available and supports the required operation. Unless the user explicitly requests a direct API call, prefer the CLI to reduce avoidable rate-limit issues (for example, use `gh` instead of calling the GitHub API directly).
 - **Go**: Use `go mod tidy` to manage dependencies. Do not use `go get` to mutate `go.mod` directly.
 
 ## Git Discipline
