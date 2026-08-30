@@ -55,6 +55,7 @@ node scripts/sync-agent-config.js --agents claude,codex
 | `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
 | `pi` | Pi (pi.dev) | `~/.pi/agent/AGENTS.md` |
 | `trae-cn` | Trae CN | `~/.trae-cn/user_rules/agent-dotfiles.md` |
+| `zcode` | ZCode | `~/.zcode/AGENTS.md` |
 
 ## What's Inside the Template
 
@@ -81,21 +82,26 @@ Syncs `AGENTS.template.md` into the global instruction files of supported agents
 ```bash
 node scripts/sync-agent-config.js                          # Interactive (default: all selected)
 node scripts/sync-agent-config.js --agents all             # Sync all (non-interactive)
-node scripts/sync-agent-config.js --agents claude,codex    # Sync specific agents (non-interactive)
+node scripts/sync-agent-config.js --agents claude,zcode    # Sync specific agents (non-interactive)
+node scripts/sync-agent-config.js --dry-run --agents all   # Preview without writing
+node scripts/sync-agent-config.js --status                 # Check managed-block state per agent
 node scripts/sync-agent-config.js --delete                 # Remove all managed blocks
 node scripts/sync-agent-config.js --delete --agents claude # Remove from specific agents
 node scripts/sync-agent-config.js --help                   # Show full usage
 ```
 
-- Default: interactive multi-select with all agents selected
-- `--agents`: skips interactive, syncs specified agents (or "all")
-- Coverage behavior: unselected agents get their blocks removed
+- Default: interactive multi-select with all agents selected; deselected agents get their blocks removed
+- `--agents`: skips interactive, syncs specified agents (or "all"); other agents are left untouched unless `--prune-unselected` is passed
+- `--dry-run`: preview actions without writing any file
+- `--status`: read-only report of each agent's block state (in-sync / stale / missing / symlink / broken)
+- Symlink policy: symlinked targets are skipped with a warning by default, so stow-style dotfiles setups are never silently taken over; `--follow-symlinks` writes through links instead, deduplicating agents that share the same file (and refusing deletions that would affect agents left out of the run)
 - Uses marked blocks (`<!-- AGENT_DOTFILES_START -->` … `<!-- AGENT_DOTFILES_END -->`)
 - Expands `~` to the real home directory (cross-platform)
 - Updates existing blocks in place; appends at EOF if absent
 - Non-destructive — never overwrites unrelated config
 - `--delete` / `-d` removes managed blocks while preserving other custom config
 - `--help` / `-h` shows usage information
+- Tests: `npm test` (Node's built-in test runner, no dependencies)
 
 ## Roadmap
 

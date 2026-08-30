@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "sync": "node scripts/sync-agent-config.js",
-    "sync:delete": "node scripts/sync-agent-config.js --delete"
+    "sync:delete": "node scripts/sync-agent-config.js --delete",
+    "test": "node --test scripts/*.test.js"
   }
 }

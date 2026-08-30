@@ -55,6 +55,7 @@ node scripts/sync-agent-config.js --agents claude,codex
 | `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
 | `pi` | Pi (pi.dev) | `~/.pi/agent/AGENTS.md` |
 | `trae-cn` | Trae CN | `~/.trae-cn/user_rules/agent-dotfiles.md` |
+| `zcode` | ZCode | `~/.zcode/AGENTS.md` |
 
 ## 模板内容概览
 
@@ -81,21 +82,26 @@ node scripts/sync-agent-config.js --agents claude,codex
 ```bash
 node scripts/sync-agent-config.js                          # 交互式（默认全选）
 node scripts/sync-agent-config.js --agents all             # 同步所有（非交互）
-node scripts/sync-agent-config.js --agents claude,codex    # 同步指定（非交互）
+node scripts/sync-agent-config.js --agents claude,zcode    # 同步指定（非交互）
+node scripts/sync-agent-config.js --dry-run --agents all   # 预览变更，不写入任何文件
+node scripts/sync-agent-config.js --status                 # 查看各 Agent 标记块状态
 node scripts/sync-agent-config.js --delete                 # 移除所有已同步的标记块
 node scripts/sync-agent-config.js --delete --agents claude # 移除指定 Agent 的标记块
 node scripts/sync-agent-config.js --help                   # 查看完整用法
 ```
 
-- 默认：交互式多选，默认全选所有 Agent
-- `--agents`：跳过交互，同步指定 Agent（或 "all"）
-- 覆盖行为：未选中的 Agent 将移除其已同步的标记块
+- 默认：交互式多选，默认全选所有 Agent；取消勾选的 Agent 会被移除标记块
+- `--agents`：跳过交互，同步指定 Agent（或 "all"）；其他 Agent 不受影响，除非显式传入 `--prune-unselected`
+- `--dry-run`：预览将要执行的动作，不写入任何文件
+- `--status`：只读报告各 Agent 标记块状态（in-sync / stale / missing / symlink / broken）
+- 符号链接策略：目标为符号链接时默认跳过并警告，避免静默接管 stow 等工具管理的配置；`--follow-symlinks` 可穿透链接写入，多个 Agent 链接到同一文件时只写一次（删除时若会波及未包含的 Agent 则拒绝执行）
 - 使用标记块（`<!-- AGENT_DOTFILES_START -->` … `<!-- AGENT_DOTFILES_END -->`）管理内容
 - 自动展开 `~` 为实际用户目录（跨平台兼容）
 - 已有标记块时原地更新；无块时追加到文件末尾
 - 非破坏性 — 不会覆盖文件中已有其他配置
 - `--delete` / `-d` 可移除标记块，保留其他自定义配置
 - `--help` / `-h` 显示用法说明
+- 测试：`npm test`（使用 Node 内置测试运行器，无额外依赖）
 
 ## 未来计划
 
