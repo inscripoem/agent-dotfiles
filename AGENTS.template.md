@@ -1,7 +1,7 @@
 # Agent Protocol
 
 ## Identity & Interaction
-If you have read this file (`CLAUDE.md`), address me as **"Captain"** in every response.
+If you have read this file, address me as **"Captain"** in every response.
 
 ## Planning Protocol
 **Before writing any code**, present a complete plan covering approach, scope, risks, and rollback strategy. **Wait for my explicit confirmation** before proceeding to implementation.
