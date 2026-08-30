@@ -51,11 +51,14 @@ node scripts/sync-agent-config.js --agents claude,codex
 |----|-------|-------------|
 | `claude` | Claude Code | `~/.claude/CLAUDE.md` |
 | `codex` | Codex (OpenAI) | `~/.codex/AGENTS.md` |
+| `dsh` | DeepSeek Harness | `~/.dsh/AGENTS.md` |
 | `gemini` | Gemini CLI | `~/.gemini/GEMINI.md` |
 | `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
 | `pi` | Pi (pi.dev) | `~/.pi/agent/AGENTS.md` |
 | `trae-cn` | Trae CN | `~/.trae-cn/user_rules/agent-dotfiles.md` |
 | `zcode` | ZCode | `~/.zcode/AGENTS.md` |
+
+> dsh (DeepSeek Harness) reads its user-global instructions from `$DSH_HOME/AGENTS.md`, defaulting to `~/.dsh/AGENTS.md`. The sync script always writes `~/.dsh/AGENTS.md`, so keep `DSH_HOME` unset or pointing at `~/.dsh`.
 
 ## What's Inside the Template
 

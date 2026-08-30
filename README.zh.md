@@ -51,11 +51,14 @@ node scripts/sync-agent-config.js --agents claude,codex
 |----|-------|---------|
 | `claude` | Claude Code | `~/.claude/CLAUDE.md` |
 | `codex` | Codex (OpenAI) | `~/.codex/AGENTS.md` |
+| `dsh` | DeepSeek Harness | `~/.dsh/AGENTS.md` |
 | `gemini` | Gemini CLI | `~/.gemini/GEMINI.md` |
 | `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
 | `pi` | Pi (pi.dev) | `~/.pi/agent/AGENTS.md` |
 | `trae-cn` | Trae CN | `~/.trae-cn/user_rules/agent-dotfiles.md` |
 | `zcode` | ZCode | `~/.zcode/AGENTS.md` |
+
+> dsh（DeepSeek Harness）从 `$DSH_HOME/AGENTS.md`（默认 `~/.dsh/AGENTS.md`）读取用户全局指令。同步脚本固定写入 `~/.dsh/AGENTS.md`，因此请保持 `DSH_HOME` 未设置或指向 `~/.dsh`。
 
 ## 模板内容概览
 

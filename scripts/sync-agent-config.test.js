@@ -254,6 +254,12 @@ describe('argument parsing', () => {
     assert.ok(zcode, 'zcode target missing');
     assert.equal(zcode.path, '~/.zcode/AGENTS.md');
   });
+
+  test('dsh is a registered target pointing at ~/.dsh/AGENTS.md', () => {
+    const dsh = TARGETS.find(t => t.id === 'dsh');
+    assert.ok(dsh, 'dsh target missing');
+    assert.equal(dsh.path, '~/.dsh/AGENTS.md');
+  });
 });
 
 describe('CLI: sync', () => {

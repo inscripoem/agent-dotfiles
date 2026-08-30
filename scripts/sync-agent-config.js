@@ -6,13 +6,14 @@
  * so template content coexists with any agent-specific settings.
  *
  * Supported agents:
- *   - Claude Code    → ~/.claude/CLAUDE.md
- *   - Codex (OpenAI) → ~/.codex/AGENTS.md
- *   - Gemini CLI     → ~/.gemini/GEMINI.md
- *   - OpenCode       → ~/.config/opencode/AGENTS.md
- *   - Pi (pi.dev)    → ~/.pi/agent/AGENTS.md
- *   - Trae CN        → ~/.trae-cn/user_rules/agent-dotfiles.md
- *   - ZCode          → ~/.zcode/AGENTS.md
+ *   - Claude Code      → ~/.claude/CLAUDE.md
+ *   - Codex (OpenAI)   → ~/.codex/AGENTS.md
+ *   - DeepSeek Harness → ~/.dsh/AGENTS.md
+ *   - Gemini CLI       → ~/.gemini/GEMINI.md
+ *   - OpenCode         → ~/.config/opencode/AGENTS.md
+ *   - Pi (pi.dev)      → ~/.pi/agent/AGENTS.md
+ *   - Trae CN          → ~/.trae-cn/user_rules/agent-dotfiles.md
+ *   - ZCode            → ~/.zcode/AGENTS.md
  *
  * Symlink policy: a target that is a symbolic link is skipped with a warning by
  * default — silently breaking a link would take over configs managed by tools
@@ -38,13 +39,14 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const SOURCE_FILE = path.join(REPO_ROOT, 'AGENTS.template.md');
 
 const TARGETS = [
-  { id: 'claude',   agent: 'Claude Code', path: '~/.claude/CLAUDE.md' },
-  { id: 'codex',    agent: 'Codex',       path: '~/.codex/AGENTS.md' },
-  { id: 'gemini',   agent: 'Gemini CLI',  path: '~/.gemini/GEMINI.md' },
-  { id: 'opencode', agent: 'OpenCode',    path: '~/.config/opencode/AGENTS.md' },
-  { id: 'pi',       agent: 'Pi (pi.dev)', path: '~/.pi/agent/AGENTS.md' },
-  { id: 'trae-cn',  agent: 'Trae CN',     path: '~/.trae-cn/user_rules/agent-dotfiles.md' },
-  { id: 'zcode',    agent: 'ZCode',       path: '~/.zcode/AGENTS.md' },
+  { id: 'claude',   agent: 'Claude Code',      path: '~/.claude/CLAUDE.md' },
+  { id: 'codex',    agent: 'Codex',            path: '~/.codex/AGENTS.md' },
+  { id: 'dsh',      agent: 'DeepSeek Harness', path: '~/.dsh/AGENTS.md' },
+  { id: 'gemini',   agent: 'Gemini CLI',       path: '~/.gemini/GEMINI.md' },
+  { id: 'opencode', agent: 'OpenCode',         path: '~/.config/opencode/AGENTS.md' },
+  { id: 'pi',       agent: 'Pi (pi.dev)',      path: '~/.pi/agent/AGENTS.md' },
+  { id: 'trae-cn',  agent: 'Trae CN',          path: '~/.trae-cn/user_rules/agent-dotfiles.md' },
+  { id: 'zcode',    agent: 'ZCode',            path: '~/.zcode/AGENTS.md' },
 ];
 
 const START_MARKER = '<!-- AGENT_DOTFILES_START -->';
@@ -69,7 +71,7 @@ Usage:
 
 Options:
   -a, --agents <list>   Comma-separated agent IDs to sync (skips interactive)
-                        Available: claude, codex, gemini, opencode, pi, trae-cn, zcode
+                        Available: claude, codex, dsh, gemini, opencode, pi, trae-cn, zcode
                         Use "all" to sync all agents without interactive prompt
   -d, --delete          Remove the managed block from each agent config
   --status              Report managed-block state per agent (read-only)
@@ -96,13 +98,14 @@ Symlink policy:
   included in the deletion.
 
 Supported agents:
-  claude     Claude Code    → ~/.claude/CLAUDE.md
-  codex      Codex          → ~/.codex/AGENTS.md
-  gemini     Gemini CLI     → ~/.gemini/GEMINI.md
-  opencode   OpenCode       → ~/.config/opencode/AGENTS.md
-  pi         Pi (pi.dev)    → ~/.pi/agent/AGENTS.md
-  trae-cn    Trae CN        → ~/.trae-cn/user_rules/agent-dotfiles.md
-  zcode      ZCode          → ~/.zcode/AGENTS.md
+  claude     Claude Code      → ~/.claude/CLAUDE.md
+  codex      Codex            → ~/.codex/AGENTS.md
+  dsh        DeepSeek Harness → ~/.dsh/AGENTS.md
+  gemini     Gemini CLI       → ~/.gemini/GEMINI.md
+  opencode   OpenCode         → ~/.config/opencode/AGENTS.md
+  pi         Pi (pi.dev)      → ~/.pi/agent/AGENTS.md
+  trae-cn    Trae CN          → ~/.trae-cn/user_rules/agent-dotfiles.md
+  zcode      ZCode            → ~/.zcode/AGENTS.md
 `);
 }
 
@@ -328,7 +331,7 @@ async function interactiveSelect() {
     TARGETS.forEach((t, i) => {
       const check = selected.has(t.id) ? '●' : '○';
       const pointer = i === cursor ? '❯' : ' ';
-      console.log(`  ${pointer} ${check}  ${t.agent.padEnd(14)} (${t.id})`);
+      console.log(`  ${pointer} ${check}  ${t.agent.padEnd(16)} (${t.id})`);
     });
     console.log('\n↑↓ Navigate  Space Toggle  Enter Confirm  a All  n None');
 
