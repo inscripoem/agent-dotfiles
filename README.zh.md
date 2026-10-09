@@ -21,10 +21,10 @@
 bun install
 ```
 
-`AGENTS.template.md` 中的规则依赖以下 MCP 服务器，请提前安装：
+`AGENTS.template.md` 中的规则使用以下 MCP 服务器：
 
 - [Context7](https://github.com/upstash/context7) — 获取最新库文档
-- [GitNexus](https://github.com/abhigyanpatwari/GitNexus) — 分析代码变更影响范围
+- [GitNexus](https://github.com/abhigyanpatwari/GitNexus)（可选）— 修改函数签名、导出 API 或共享模块前追踪调用方与依赖；不可用时通过仓库搜索与源码检查完成分析
 
 ### 同步配置到各 Agent
 
@@ -65,9 +65,10 @@ node scripts/sync-agent-config.js --agents claude,codex
 `AGENTS.template.md` 涵盖以下规范分类：
 
 - **通用** — 身份与交互协议、写代码前先规划（只读研究不受限制）、文档优先
+- **写作风格** — 文档及所有面向用户的内容（包括网页和应用内文本）均使用书面用语；除非用户明确要求，否则避免过于口语化的表达
 - **网页内容获取** — 根据需求选择 `webfetch`（总结）或 `curl`（原始源码）
 - **密钥安全** — 绝不让密钥进入 AI context；通过 shell 管道传递（$(jq)、source、$VAR）
-- **变更影响评估** — 修改前使用 GitNexus 分析影响范围、保持文档同步
+- **变更影响评估** — 修改函数签名、导出 API 或共享模块前追踪调用方与依赖，更新受影响的调用方与测试，执行相关检查，并同步文档引用；不得将空搜索结果视为无影响的证明
 - **编码原则与自我审查** — 扁平显式代码、最小耦合、可重写性，以及任务完成后的自检清单
 - **项目构建** — 始终使用框架脚手架初始化；优先用命令行管理依赖
 - **CLI 优先于直接 API 调用** — 已知 API 有对应 CLI 时，先确认其可用且能完成所需操作；除非用户明确要求直接调用 API，否则优先使用 CLI，以减少不必要的限流问题（如使用 `gh` 操作 GitHub）

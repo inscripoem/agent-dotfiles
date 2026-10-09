@@ -45,6 +45,10 @@ AI can verify key existence (`[ -n "$KEY" ]`), length
 **Config:** guide user to run `export` / `aws configure` /
 `gh auth login` themselves. Don't write credential files.
 
+## Writing Style
+
+Use formal written language in documentation and all user-facing content, including websites and in-app text. Avoid overly colloquial expressions unless the user explicitly requests otherwise.
+
 ## Documentation First
 Before implementing code that depends on a library, framework, or API not already established in this project, or when editing configuration for tools whose schema you are uncertain about, query **Context7 MCP** for the latest documentation to verify correct field names, usage patterns, and configuration options.
 
@@ -53,9 +57,13 @@ Before implementing code that depends on a library, framework, or API not alread
 Use `webfetch` for summarized webpage content and `curl` for raw HTML source; prefer `curl` when exact fidelity is required.
 
 ## Change Impact Assessment
-Before modifying existing functionality, use **GitNexus MCP** to analyze the impact scope. Identify all affected files, call sites, and dependencies that require updates to ensure the change is complete and consistent.
+Before changing a function signature, exported API, or shared module,
+trace its callers and dependencies using GitNexus when available,
+or repository search and source inspection otherwise.
+Update affected callers and tests, then run relevant checks.
+Do not treat empty search results as proof of no impact.
 
-For documentation changes, search the repository for references to the document title, key terms, or file paths, and update all linked or related documents to maintain consistency.
+For documentation changes, search for and update related references.
 
 ## Coding Principles and Self-Review
 

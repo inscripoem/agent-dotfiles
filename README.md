@@ -21,10 +21,10 @@ Install dependencies:
 bun install
 ```
 
-Install the following MCP servers used by the rules in `AGENTS.template.md`:
+The rules in `AGENTS.template.md` use the following MCP servers:
 
 - [Context7](https://github.com/upstash/context7) — fetch up-to-date library docs
-- [GitNexus](https://github.com/abhigyanpatwari/GitNexus) — analyze change impact across the codebase
+- [GitNexus](https://github.com/abhigyanpatwari/GitNexus) (optional) — trace callers and dependencies before changing function signatures, exported APIs, or shared modules; use repository search and source inspection when unavailable
 
 ### Sync Configuration to Your Agents
 
@@ -65,9 +65,10 @@ node scripts/sync-agent-config.js --agents claude,codex
 `AGENTS.template.md` covers the following categories:
 
 - **General** — identity protocol, planning before writing code (with read-only investigation freely permitted), documentation-first approach
+- **Writing Style** — use formal written language in documentation and all user-facing content, including websites and in-app text; avoid overly colloquial expressions unless explicitly requested by the user
 - **Web Content Retrieval** — choose `webfetch` for summaries or `curl` for raw source
 - **Secret Security** — never read secrets into context; pipe values through shell ($(jq), source, $VAR)
-- **Change Impact Assessment** — using GitNexus before modifications, keeping docs in sync
+- **Change Impact Assessment** — trace callers and dependencies before changing function signatures, exported APIs, or shared modules; update affected callers and tests, run relevant checks, and keep document references in sync; empty search results do not prove absence of impact
 - **Coding Principles and Self-Review** — flat explicit code, minimal coupling, regenerability, and post-task self-review checklist
 - **Project Setup** — always use framework scaffolding; use CLI for dependency management
 - **CLI Before Direct APIs** — when an API has a known CLI, confirm it is available and can perform the operation, then prefer it unless the user explicitly requests a direct API call, reducing avoidable rate-limit issues (for example, `gh` for GitHub)
