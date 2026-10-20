@@ -1,0 +1,13 @@
+# Pure-filler tier: flagged as error in any context.
+# Only zero-controversy words live here; words with legitimate technical
+# usage belong in Jargon.yml (warning tier).
+extends: existence
+
+message: "别用 '%s'。它不携带信息，直接写那个具体动作。"
+level: error
+ignorecase: false
+
+tokens:
+  - 赋能
+  - 抓手
+  - 拉通

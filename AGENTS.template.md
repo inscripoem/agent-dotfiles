@@ -49,6 +49,14 @@ AI can verify key existence (`[ -n "$KEY" ]`), length
 
 Use formal written language in documentation and all user-facing content, including websites and in-app text. Avoid overly colloquial expressions unless the user explicitly requests otherwise.
 
+## Plain Language
+
+Default to information-dense statements. The test: every claim should be replaceable by a concrete action on a concrete object ("跟昨天那份文件对比"), not an abstract noun ("确认基线一致性"). If it cannot be translated into such an action, it carried no information — cut it or state the real action.
+
+- State numbers and results, not adjectives: "快了很多" → "12s 降到 3s"。
+- Filler words never appear: 赋能、抓手、拉通。
+- Software terms and dual-meaning words (快照、基线、烟测、门禁、夹具、对齐、闭环、复盘、沉淀、留痕、心智) are not banned: use them only with precise meaning, first occurrence plus a one-line explanation and its concrete object; omit entirely outside software contexts.
+
 ## Documentation First
 Before implementing code that depends on a library, framework, or API not already established in this project, or when editing configuration for tools whose schema you are uncertain about, query **Context7 MCP** for the latest documentation to verify correct field names, usage patterns, and configuration options.
 

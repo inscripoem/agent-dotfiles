@@ -10,6 +10,7 @@ A personal collection of conventions and best practices for AI coding agents. Pa
 |------|---------|
 | `AGENTS.template.md` | The main template containing all agent rules and conventions. Copy or symlink this into your agent's global instructions path. |
 | `skills/` | Cross-agent skills (one folder with a `SKILL.md` per skill), distributed by the script's `--skills` mode. |
+| `vale/` | Optional file-layer enforcement: a two-tier Vale style pack (error-tier filler words, warning-tier software-jargon watch list) with wiring notes. See [vale/README.md](vale/README.md). |
 | `scripts/sync-agent-config.js` | Syncs `AGENTS.template.md` into multiple agent config files and `skills/` into the agents' skills directories (see below). |
 
 ## Quick Start
@@ -61,6 +62,7 @@ Opens a two-step interactive picker: what to sync (instruction blocks and/or ski
 
 - **General** — identity protocol, planning before writing code (with read-only investigation freely permitted), documentation-first approach
 - **Writing Style** — use formal written language in documentation and all user-facing content, including websites and in-app text; avoid overly colloquial expressions unless explicitly requested by the user
+- **Plain Language** — information-dense statements: every claim replaceable by a concrete action on a concrete object; filler words (赋能、抓手、拉通) never appear; software jargon is not banned but requires precise meaning, a first-occurrence explanation, and a concrete object
 - **Web Content Retrieval** — choose `webfetch` for summaries or `curl` for raw source
 - **Secret Security** — never read secrets into context; pipe values through shell ($(jq), source, $VAR)
 - **Change Impact Assessment** — trace callers and dependencies before changing function signatures, exported APIs, or shared modules; update affected callers and tests, run relevant checks, and keep document references in sync; empty search results do not prove absence of impact
@@ -120,4 +122,5 @@ node scripts/sync-agent-config.js --skills --delete --agents all  # One kind, ev
 
 ## See Also
 
+- [plain-language-research.md](Plain Language research & rationale — thesis, fact-check log, community scan, word-list provenance, sources)
 - [inspirations.md](Inspirations)

@@ -1,0 +1,26 @@
+# Watch tier: not a ban. A hit asks "precise usage or filler?" — the human or
+# model decides in context. Non-software repositories can set level to error
+# for the strict tier. Word-list provenance: skills/plain-speak/references/jargon-table.md
+extends: existence
+
+message: "'%s'：确认是精确用法还是填充。精确用法保留，首次出现加一句解释并给具体对象；填充就换成具体动作 + 具体对象。"
+level: warning
+ignorecase: false
+
+tokens:
+  - 可追溯备份
+  - 全量 dry-run
+  - 验收矩阵
+  - 基线一致性
+  - 烟测
+  - 门禁
+  - 探针
+  - 夹具
+  - 快照
+  - 基线
+  - 对齐
+  - 闭环
+  - 沉淀
+  - 复盘
+  - 留痕
+  - 心智

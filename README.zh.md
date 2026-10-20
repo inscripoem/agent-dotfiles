@@ -10,6 +10,7 @@
 |------|------|
 | `AGENTS.template.md` | 主模板文件，包含所有 Agent 规则与约定。复制或软链接到各 Agent 的全局提示词路径即可。 |
 | `skills/` | 跨 Agent 技能（每个技能一个含 `SKILL.md` 的目录），由脚本的 `--skills` 模式分发。 |
+| `vale/` | 可选的文件层硬校验：双档 Vale 样式包（error 级纯填充词 + warning 级软工黑话观察名单）及接线说明。见 [vale/README.md](vale/README.md)。 |
 | `scripts/sync-agent-config.js` | 自动将模板同步到多个 Agent 配置文件，并将 `skills/` 分发到各 Agent 的 skills 目录（见下文）。 |
 
 ## 快速开始
@@ -61,6 +62,7 @@ node scripts/sync-agent-config.js
 
 - **通用** — 身份与交互协议、写代码前先规划（只读研究不受限制）、文档优先
 - **写作风格** — 文档及所有面向用户的内容（包括网页和应用内文本）均使用书面用语；除非用户明确要求，否则避免过于口语化的表达
+- **说人话** — 输出信息密集：每个论断都可替换为「具体动作 + 具体对象」；纯填充词（赋能、抓手、拉通）不出现；软工术语不禁用，但需精确用法、首次出现附一句解释并给具体对象
 - **网页内容获取** — 根据需求选择 `webfetch`（总结）或 `curl`（原始源码）
 - **密钥安全** — 绝不让密钥进入 AI context；通过 shell 管道传递（$(jq)、source、$VAR）
 - **变更影响评估** — 修改函数签名、导出 API 或共享模块前追踪调用方与依赖，更新受影响的调用方与测试，执行相关检查，并同步文档引用；不得将空搜索结果视为无影响的证明
@@ -119,4 +121,5 @@ node scripts/sync-agent-config.js --skills --delete --agents all  # 单一类别
 
 ## 另请参阅
 
+- [plain-language-research.md](说人话机制的研究与设计依据——论点、核查记录、社区扫描、词表来源、参考链接)
 - [inspirations.md](灵感来源)
