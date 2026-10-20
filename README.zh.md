@@ -9,7 +9,8 @@
 | 文件 | 说明 |
 |------|------|
 | `AGENTS.template.md` | 主模板文件，包含所有 Agent 规则与约定。复制或软链接到各 Agent 的全局提示词路径即可。 |
-| `scripts/sync-agent-config.js` | 自动将模板同步到多个 Agent 配置文件中（见下文）。 |
+| `skills/` | 跨 Agent 技能（每个技能一个含 `SKILL.md` 的目录），由脚本的 `--skills` 模式分发。 |
+| `scripts/sync-agent-config.js` | 自动将模板同步到多个 Agent 配置文件，并将 `skills/` 分发到各 Agent 的 skills 目录（见下文）。 |
 
 ## 快速开始
 
@@ -32,33 +33,27 @@ bun install
 node scripts/sync-agent-config.js
 ```
 
-打开交互式多选界面，默认全选所有 Agent。使用 `--agents` 跳过交互模式。
+打开两步交互选择器：先选同步内容（指令块和/或 skills），再选 Agent——默认全选。非交互旗标见[实用工具](#实用工具)。
 
-```bash
-# 交互式（默认全选）
-node scripts/sync-agent-config.js
+**各 Agent 及其目标：**
 
-# 非交互：同步所有 Agent
-node scripts/sync-agent-config.js --agents all
+| Agent | 指令文件 | Skills 目标目录 |
+|-------|----------|-----------------|
+| Claude Code（`claude`） | `~/.claude/CLAUDE.md` | `~/.claude/skills/` |
+| Codex（`codex`） | `~/.codex/AGENTS.md` | `~/.agents/skills/`（共享） |
+| DeepSeek Harness（`dsh`） | `~/.dsh/AGENTS.md` | `~/.agents/skills/`（共享） |
+| Gemini CLI（`gemini`） | `~/.gemini/GEMINI.md` | `~/.agents/skills/`（共享） |
+| Antigravity CLI（`agy`） | `~/.gemini/GEMINI.md` | `~/.gemini/antigravity-cli/skills/` |
+| OpenCode（`opencode`） | `~/.config/opencode/AGENTS.md` | `~/.agents/skills/`（共享） |
+| Pi（`pi`） | `~/.pi/agent/AGENTS.md` | `~/.agents/skills/`（共享） |
+| Trae CN（`trae-cn`） | `~/.trae-cn/user_rules/agent-dotfiles.md` | `~/.trae-cn/skills/` |
+| ZCode（`zcode`） | `~/.zcode/AGENTS.md` | `~/.agents/skills/`（共享） |
 
-# 非交互：同步指定 Agent
-node scripts/sync-agent-config.js --agents claude,codex
-```
+`~/.agents/skills/` 是共享目录：一次同步即可覆盖 ZCode、Codex、OpenCode、Gemini CLI、pi、dsh。Skills 是当前的跨 Agent 通用原语——在 ZCode、pi、Antigravity CLI、Claude Code 中可作为 slash command 调用；Codex 使用 `/skills` 或 `$name`；OpenCode 通过 `opencode/slash` 元数据字段暴露。
 
-**支持的 Agent：**
-
-| ID | Agent | 目标路径 |
-|----|-------|---------|
-| `claude` | Claude Code | `~/.claude/CLAUDE.md` |
-| `codex` | Codex (OpenAI) | `~/.codex/AGENTS.md` |
-| `dsh` | DeepSeek Harness | `~/.dsh/AGENTS.md` |
-| `gemini` | Gemini CLI | `~/.gemini/GEMINI.md` |
-| `opencode` | OpenCode | `~/.config/opencode/AGENTS.md` |
-| `pi` | Pi (pi.dev) | `~/.pi/agent/AGENTS.md` |
-| `trae-cn` | Trae CN | `~/.trae-cn/user_rules/agent-dotfiles.md` |
-| `zcode` | ZCode | `~/.zcode/AGENTS.md` |
-
-> dsh（DeepSeek Harness）从 `$DSH_HOME/AGENTS.md`（默认 `~/.dsh/AGENTS.md`）读取用户全局指令。同步脚本固定写入 `~/.dsh/AGENTS.md`，因此请保持 `DSH_HOME` 未设置或指向 `~/.dsh`。
+> dsh（DeepSeek Harness）从 `$DSH_HOME/AGENTS.md`（默认 `~/.dsh/AGENTS.md`）读取用户全局指令，请保持 `DSH_HOME` 未设置或指向 `~/.dsh`。其对 `~/.agents/skills` 的支持已于 2026 年 10 月实测验证。
+>
+> agy（Antigravity CLI）与 Gemini CLI 共享同一指令文件——两者同时勾选时只写入一次；删除时需要同时包含两者。
 
 ## 模板内容概览
 
@@ -81,30 +76,35 @@ node scripts/sync-agent-config.js --agents claude,codex
 
 ### `scripts/sync-agent-config.js`
 
-将 `AGENTS.template.md` 同步到各支持 Agent 的全局提示词文件中。
+选择模型——三个轴，对所有类别完全一致：
+
+- **动词**：`sync`（默认）· `--status`（只读）· `--delete`
+- **类别**：指令块 · skills——裸命令覆盖全部类别；`--instructions` / `--skills` 收窄到单一类别
+- **范围**：`--agents <ids>`（默认 `all`；裸 sync/delete 不带它时先交互确认）
 
 ```bash
-node scripts/sync-agent-config.js                          # 交互式（默认全选）
-node scripts/sync-agent-config.js --agents all             # 同步所有（非交互）
-node scripts/sync-agent-config.js --agents claude,zcode    # 同步指定（非交互）
-node scripts/sync-agent-config.js --dry-run --agents all   # 预览变更，不写入任何文件
-node scripts/sync-agent-config.js --status                 # 查看各 Agent 标记块状态
-node scripts/sync-agent-config.js --delete                 # 移除所有已同步的标记块
-node scripts/sync-agent-config.js --delete --agents claude # 移除指定 Agent 的标记块
-node scripts/sync-agent-config.js --help                   # 查看完整用法
+# 同步
+node scripts/sync-agent-config.js                          # 交互式：先选内容，再选 Agent
+node scripts/sync-agent-config.js --agents all             # 所有类别，全部范围
+node scripts/sync-agent-config.js --skills --agents claude # 单一类别，单一范围
+
+# 查看
+node scripts/sync-agent-config.js --status                 # 所有类别的状态
+node scripts/sync-agent-config.js --skills --status        # 仅 skills 状态
+node scripts/sync-agent-config.js --dry-run --agents all   # 预览，不写入
+
+# 移除
+node scripts/sync-agent-config.js --delete                 # 交互确认范围
+node scripts/sync-agent-config.js --delete --agents claude # 单一范围
+node scripts/sync-agent-config.js --skills --delete --agents all  # 单一类别，全部范围
 ```
 
-- 默认：交互式多选，默认全选所有 Agent；取消勾选的 Agent 会被移除标记块
-- `--agents`：跳过交互，同步指定 Agent（或 "all"）；其他 Agent 不受影响，除非显式传入 `--prune-unselected`
-- `--dry-run`：预览将要执行的动作，不写入任何文件
-- `--status`：只读报告各 Agent 标记块状态（in-sync / stale / missing / symlink / broken）
-- 符号链接策略：目标为符号链接时默认跳过并警告，避免静默接管 stow 等工具管理的配置；`--follow-symlinks` 可穿透链接写入，多个 Agent 链接到同一文件时只写一次（删除时若会波及未包含的 Agent 则拒绝执行）
-- 使用标记块（`<!-- AGENT_DOTFILES_START -->` … `<!-- AGENT_DOTFILES_END -->`）管理内容
-- 自动展开 `~` 为实际用户目录（跨平台兼容）
-- 已有标记块时原地更新；无块时追加到文件末尾
-- 非破坏性 — 不会覆盖文件中已有其他配置
-- `--delete` / `-d` 可移除标记块，保留其他自定义配置
-- `--help` / `-h` 显示用法说明
+- 两步交互：裸命令先问内容、再问 Agent；同一份选择驱动所有类别，取消勾选的 Agent 其托管内容会被移除
+- `--prune-unselected`：与 `--agents` 连用时同时清除未选中 Agent 的托管内容——对所有类别一致生效
+- 指令块：各 Agent 全局配置中的标记块（`<!-- AGENT_DOTFILES_START -->` … `<!-- AGENT_DOTFILES_END -->`）；更新只重写该块，原地进行，不触碰周边配置
+- Skills 所有权：每个目标目录中的 `.agent-dotfiles-manifest.json` 记录本脚本托管的 skills——非托管 skills 永不被覆盖或清理；已从仓库移除的托管 skills 会在下次同步时清理；非托管同名 skill 会被报告并跳过
+- 符号链接策略：目标为符号链接时默认跳过并警告（绝不静默接管 stow 式配置）；`--follow-symlinks` 可穿透链接写入，多个 Agent 链接到同一文件时只写一次；删除时若会波及未包含的共享文件则拒绝执行
+- `--dry-run` 预览不写入；`~` 跨平台展开
 - 测试：`npm test`（使用 Node 内置测试运行器，无额外依赖）
 
 ## 未来计划

@@ -10,10 +10,26 @@
  *   - Codex (OpenAI)   → ~/.codex/AGENTS.md
  *   - DeepSeek Harness → ~/.dsh/AGENTS.md
  *   - Gemini CLI       → ~/.gemini/GEMINI.md
+ *   - Antigravity CLI  → ~/.gemini/GEMINI.md (shares the file with Gemini CLI)
  *   - OpenCode         → ~/.config/opencode/AGENTS.md
  *   - Pi (pi.dev)      → ~/.pi/agent/AGENTS.md
  *   - Trae CN          → ~/.trae-cn/user_rules/agent-dotfiles.md
  *   - ZCode            → ~/.zcode/AGENTS.md
+ *
+ * Kinds (instruction blocks, skills) share one selection model: --agents
+ * scopes every kind identically, a bare command covers all kinds, and
+ * --instructions / --skills narrow the run to a single kind. New kinds plug
+ * into the same defaults.
+ *
+ * Skills sync (--skills): distributes every <repo>/skills/<name>/ directory to
+ * the user-level skills directories scanned by the supported agents. Each
+ * destination declares which agents it serves, so --agents filters skills and
+ * instructions with the same semantics. Ownership is recorded in a manifest
+ * file inside each destination so that pruning and deletion never touch skills
+ * installed by other tools.
+ *
+ * Interactive mode (no flags) asks in two steps: what to sync, then which
+ * agents — one selection drives every kind.
  *
  * Symlink policy: a target that is a symbolic link is skipped with a warning by
  * default — silently breaking a link would take over configs managed by tools
@@ -25,14 +41,18 @@
  *   node scripts/sync-agent-config.js                        # Interactive (default: all selected)
  *   node scripts/sync-agent-config.js --agents claude,zcode  # Sync specific agents (non-interactive)
  *   node scripts/sync-agent-config.js --agents all           # Sync all agents (non-interactive)
+ *   node scripts/sync-agent-config.js --skills               # Sync skills to all destinations
  *   node scripts/sync-agent-config.js --status               # Report managed-block state per agent
+ *   node scripts/sync-agent-config.js --skills --status      # Report skills state per destination
  *   node scripts/sync-agent-config.js --dry-run --agents all # Preview changes without writing
  *   node scripts/sync-agent-config.js --delete               # Remove managed blocks
+ *   node scripts/sync-agent-config.js --skills --delete      # Remove managed skills
  */
 
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const readline = require('readline');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -43,6 +63,7 @@ const TARGETS = [
   { id: 'codex',    agent: 'Codex',            path: '~/.codex/AGENTS.md' },
   { id: 'dsh',      agent: 'DeepSeek Harness', path: '~/.dsh/AGENTS.md' },
   { id: 'gemini',   agent: 'Gemini CLI',       path: '~/.gemini/GEMINI.md' },
+  { id: 'agy',      agent: 'Antigravity CLI',  path: '~/.gemini/GEMINI.md' },
   { id: 'opencode', agent: 'OpenCode',         path: '~/.config/opencode/AGENTS.md' },
   { id: 'pi',       agent: 'Pi (pi.dev)',      path: '~/.pi/agent/AGENTS.md' },
   { id: 'trae-cn',  agent: 'Trae CN',          path: '~/.trae-cn/user_rules/agent-dotfiles.md' },
@@ -63,49 +84,69 @@ function printHelp() {
   console.log(`
 sync-agent-config.js
 
-  Sync AGENTS.template.md to global config paths of various coding agents.
-  Inserts or updates a marked text block inside each agent's global config file.
+  Sync agent dotfiles across coding agents. Two kinds share one model:
+
+    verbs    sync (default) | --status | --delete
+    kinds    instructions | skills            (bare = all; a kind flag narrows)
+    scope    --agents <ids> | all             (default: all)
+
+  A bare command is interactive: it asks what, then which agents. --status is
+  read-only and runs directly.
 
 Usage:
   node scripts/sync-agent-config.js [options]
 
 Options:
-  -a, --agents <list>   Comma-separated agent IDs to sync (skips interactive)
-                        Available: claude, codex, dsh, gemini, opencode, pi, trae-cn, zcode
-                        Use "all" to sync all agents without interactive prompt
-  -d, --delete          Remove the managed block from each agent config
-  --status              Report managed-block state per agent (read-only)
-  --dry-run             Preview actions without writing any file
-  --follow-symlinks     Operate through symbolic links instead of skipping them
-  --prune-unselected    With --agents, also remove blocks from unselected agents
-                        (interactive mode always prunes deselected agents)
-  -h, --help            Show this help message
+  -a, --agents <list>   Scope: comma-separated agent IDs (claude, codex, dsh,
+                        gemini, agy, opencode, pi, trae-cn, zcode; "all" is
+                        everything). Bare sync/delete without it ask first.
+  -d, --delete          Remove managed content instead of syncing it.
+  --instructions        Limit the run to the instructions kind.
+  --skills              Limit the run to the skills kind.
+  --status              Report state instead of syncing (read-only).
+  --dry-run             Preview without writing.
+  --follow-symlinks     Write through symlinks instead of skipping them.
+  --prune-unselected    With --agents, also remove unselected agents' managed
+                        content (interactive runs always prune deselections).
+  -h, --help            Show this help.
 
 Examples:
-  node scripts/sync-agent-config.js                          # Interactive (default: all selected)
-  node scripts/sync-agent-config.js --agents all             # Sync all (non-interactive)
-  node scripts/sync-agent-config.js --agents claude,zcode    # Sync specific agents (non-interactive)
-  node scripts/sync-agent-config.js --dry-run --agents all   # Preview without writing
-  node scripts/sync-agent-config.js --status                 # Check which agents are in sync
-  node scripts/sync-agent-config.js --delete                 # Remove all managed blocks
-  node scripts/sync-agent-config.js --delete --agents claude # Remove from specific agents
+  Sync
+    node scripts/sync-agent-config.js                           # interactive
+    node scripts/sync-agent-config.js --agents all              # every kind, everywhere
+    node scripts/sync-agent-config.js --skills --agents claude  # one kind, one scope
+  Inspect
+    node scripts/sync-agent-config.js --status                  # every kind
+    node scripts/sync-agent-config.js --skills --status         # one kind
+    node scripts/sync-agent-config.js --dry-run --agents all    # preview
+  Remove
+    node scripts/sync-agent-config.js --delete                  # interactive
+    node scripts/sync-agent-config.js --delete --agents claude  # one scope
+    node scripts/sync-agent-config.js --skills --delete --agents all   # one kind
 
-Symlink policy:
-  Targets that are symbolic links are skipped with a warning by default.
-  With --follow-symlinks the script writes through links; agents linking to
-  the same file are deduplicated (the file is written once per run). When
-  deleting, a shared file is left alone unless every agent using it is
-  included in the deletion.
+Agents (instruction file → skills destination):
+  claude     ~/.claude/CLAUDE.md                       ~/.claude/skills
+  codex      ~/.codex/AGENTS.md                        ~/.agents/skills  (shared)
+  dsh        ~/.dsh/AGENTS.md                          ~/.agents/skills  (shared)
+  gemini     ~/.gemini/GEMINI.md                       ~/.agents/skills  (shared)
+  agy        ~/.gemini/GEMINI.md                       ~/.gemini/antigravity-cli/skills
+  opencode   ~/.config/opencode/AGENTS.md              ~/.agents/skills  (shared)
+  pi         ~/.pi/agent/AGENTS.md                     ~/.agents/skills  (shared)
+  trae-cn    ~/.trae-cn/user_rules/agent-dotfiles.md   ~/.trae-cn/skills
+  zcode      ~/.zcode/AGENTS.md                        ~/.agents/skills  (shared)
 
-Supported agents:
-  claude     Claude Code      → ~/.claude/CLAUDE.md
-  codex      Codex            → ~/.codex/AGENTS.md
-  dsh        DeepSeek Harness → ~/.dsh/AGENTS.md
-  gemini     Gemini CLI       → ~/.gemini/GEMINI.md
-  opencode   OpenCode         → ~/.config/opencode/AGENTS.md
-  pi         Pi (pi.dev)      → ~/.pi/agent/AGENTS.md
-  trae-cn    Trae CN          → ~/.trae-cn/user_rules/agent-dotfiles.md
-  zcode      ZCode            → ~/.zcode/AGENTS.md
+  ~/.agents/skills is the shared directory, read by every agent following the
+  agentskills convention. agy and gemini also share one instruction file —
+  selecting both writes it once.
+
+Notes:
+  Instruction blocks are marked blocks inside each agent's global config;
+  updates rewrite only that block. Skills are copied from <repo>/skills/ and
+  tracked via .agent-dotfiles-manifest.json in each destination — skills not
+  owned by this script are never touched, and skills removed from the
+  repository are pruned on the next sync. Symlinks are skipped unless
+  --follow-symlinks is given; agents sharing one file are written once, and
+  deletion refuses to touch a shared file unless every sharer is included.
 `);
 }
 
@@ -195,14 +236,14 @@ function syncFile(targetPath, template, { dryRun = false } = {}) {
 
 function removeBlock(targetPath, { dryRun = false } = {}) {
   if (!fs.existsSync(targetPath)) {
-    return { action: 'missing', message: 'File does not exist' };
+    return { action: 'missing', message: 'file does not exist' };
   }
 
   const content = fs.readFileSync(targetPath, 'utf8');
   const block = locateBlock(content);
 
   if (block.status === 'absent') {
-    return { action: 'none', message: 'No managed block found' };
+    return { action: 'none', message: 'no managed block' };
   }
   if (block.status === 'broken') {
     throw new Error('Orphaned START/END marker(s); aborting to prevent data loss');
@@ -218,14 +259,14 @@ function removeBlock(targetPath, { dryRun = false } = {}) {
     if (!dryRun) {
       fs.writeFileSync(targetPath, '', 'utf8');
     }
-    return { action: 'cleared', message: 'Block removed, file is now empty' };
+    return { action: 'cleared', message: 'removed, file is now empty' };
   }
 
   if (!dryRun) {
     const separator = before.endsWith('\n') || after.startsWith('\n') ? '' : '\n';
     fs.writeFileSync(targetPath, before + separator + after, 'utf8');
   }
-  return { action: 'removed', message: 'Block removed' };
+  return { action: 'removed', message: 'removed' };
 }
 
 // Read-only classification of a target for --status. `linked` reports whether
@@ -248,6 +289,289 @@ function blockState(targetPath, template) {
   const current = content.slice(block.startIdx, block.endIdx + END_MARKER.length);
   const expected = wrapContent(template);
   return { state: current === expected ? 'in-sync' : 'stale', linked };
+}
+
+// ---------------------------------------------------------------------------
+// Skills sync
+//
+// Skills live in <repo>/skills/<name>/ (each containing SKILL.md) and are
+// distributed to every user-level directory the supported agents scan.
+// Ownership of installed skills is recorded in a manifest file next to them,
+// so pruning and deletion never touch skills installed by other tools.
+
+const SKILLS_SOURCE_DIR = path.join(REPO_ROOT, 'skills');
+const SKILLS_MANIFEST_NAME = '.agent-dotfiles-manifest.json';
+
+const SKILL_DESTINATIONS = [
+  { id: 'shared',  agent: 'Shared (~/.agents)', path: '~/.agents/skills',                 agents: ['zcode', 'codex', 'opencode', 'gemini', 'pi', 'dsh'] },
+  { id: 'claude',  agent: 'Claude Code',        path: '~/.claude/skills',                 agents: ['claude'] },
+  { id: 'trae-cn', agent: 'Trae CN',            path: '~/.trae-cn/skills',                agents: ['trae-cn'] },
+  { id: 'agy',     agent: 'Antigravity CLI',    path: '~/.gemini/antigravity-cli/skills', agents: ['agy'] },
+];
+
+// Destinations serving the given agent selection: a destination is included
+// when any of its agents is selected ("all" selects every destination).
+function resolveSkillDestinations(agentIds) {
+  if (agentIds.includes('all')) return SKILL_DESTINATIONS;
+  return SKILL_DESTINATIONS.filter(d => d.agents.some(a => agentIds.includes(a)));
+}
+
+// Skill folder names directly under the source directory (dot entries and
+// folders without a SKILL.md are not skills).
+function listSourceSkills(sourceDir = SKILLS_SOURCE_DIR) {
+  if (!fs.existsSync(sourceDir)) return [];
+  return fs.readdirSync(sourceDir, { withFileTypes: true })
+    .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+    .map(e => e.name)
+    .filter(name => fs.existsSync(path.join(sourceDir, name, 'SKILL.md')))
+    .sort();
+}
+
+function readManifest(destSkillsDir) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(destSkillsDir, SKILLS_MANIFEST_NAME), 'utf8'));
+    return Array.isArray(parsed) ? parsed.filter(s => typeof s === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeManifest(destSkillsDir, names) {
+  fs.writeFileSync(path.join(destSkillsDir, SKILLS_MANIFEST_NAME), JSON.stringify(names, null, 2) + '\n', 'utf8');
+}
+
+// Deterministic digest of a directory tree's relative paths and file contents,
+// so an installed skill can be compared against its source without a diff walk.
+function hashDir(dir) {
+  const hash = crypto.createHash('sha256');
+  const visit = (current, prefix) => {
+    const entries = fs.readdirSync(current, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        visit(path.join(current, entry.name), rel);
+      } else if (entry.isFile()) {
+        hash.update(rel + '\0');
+        hash.update(fs.readFileSync(path.join(current, entry.name)));
+        hash.update('\0');
+      }
+    }
+  };
+  visit(dir, '');
+  return hash.digest('hex');
+}
+
+// Classify an installed skill against its source:
+//   in-sync → managed copy matches the source
+//   stale   → managed but differs from the source
+//   missing → not installed yet
+//   foreign → present but not managed by this script (never touched)
+//   symlink → present as a symlink (never followed or replaced)
+function skillState(destSkillsDir, sourceDir, name, managed) {
+  const dest = path.join(destSkillsDir, name);
+  if (isSymlink(dest)) return 'symlink';
+  if (!fs.existsSync(dest)) return 'missing';
+  if (!managed.includes(name)) return 'foreign';
+  return hashDir(dest) === hashDir(path.join(sourceDir, name)) ? 'in-sync' : 'stale';
+}
+
+// Decide everything that needs to happen in one destination before touching it.
+function planSkillsSync(destSkillsDir, sourceDir, skillNames) {
+  const managed = readManifest(destSkillsDir);
+  const inSync = [];
+  const install = [];
+  const skip = [];
+  for (const name of skillNames) {
+    const state = skillState(destSkillsDir, sourceDir, name, managed);
+    if (state === 'in-sync') {
+      inSync.push(name);
+    } else if (state === 'foreign' || state === 'symlink') {
+      skip.push({ name, reason: state });
+    } else {
+      install.push({ name, action: state === 'stale' ? 'updated' : 'created' });
+    }
+  }
+  const prune = managed.filter(n => !skillNames.includes(n) && !isSymlink(path.join(destSkillsDir, n)));
+  return { inSync, install, skip, prune };
+}
+
+function installSkill(sourceDir, name, destSkillsDir, { dryRun = false } = {}) {
+  const dest = path.join(destSkillsDir, name);
+  const existed = fs.existsSync(dest);
+  if (!dryRun) {
+    fs.rmSync(dest, { recursive: true, force: true });
+    fs.cpSync(path.join(sourceDir, name), dest, { recursive: true });
+  }
+  return existed ? 'updated' : 'created';
+}
+
+function uninstallSkills(destSkillsDir, names, { dryRun = false } = {}) {
+  if (!dryRun) {
+    for (const name of names) {
+      fs.rmSync(path.join(destSkillsDir, name), { recursive: true, force: true });
+    }
+  }
+}
+
+function runSkillsSync(opts, destinations = SKILL_DESTINATIONS, { pruneOthers = false } = {}) {
+  const skillNames = listSourceSkills();
+  if (skillNames.length === 0) {
+    console.log(`No skills found in ${SKILLS_SOURCE_DIR} (expected <name>/SKILL.md). Nothing to sync.`);
+    return;
+  }
+
+  const notes = [];
+  if (pruneOthers) {
+    const selected = new Set(destinations.map(d => d.id));
+    for (const dest of SKILL_DESTINATIONS) {
+      if (!selected.has(dest.id)) {
+        notes.push(...clearManagedSkills(dest, opts));
+      }
+    }
+  }
+
+  const outcomes = new Map();
+  const pathWidth = Math.max(...destinations.map(d => d.path.length));
+
+  for (const dest of destinations) {
+    const destDir = expandHome(dest.path);
+    try {
+      if (!fs.existsSync(destDir)) {
+        if (opts.dryRun) {
+          notes.push(`• ${dest.path}: directory would be created`);
+        } else {
+          fs.mkdirSync(destDir, { recursive: true });
+        }
+      }
+
+      const plan = planSkillsSync(destDir, SKILLS_SOURCE_DIR, skillNames);
+      for (const name of skillNames) {
+        let icon;
+        let text;
+        if (plan.inSync.includes(name)) {
+          icon = '=';
+          text = 'in-sync';
+        } else if (plan.install.some(i => i.name === name)) {
+          const actual = installSkill(SKILLS_SOURCE_DIR, name, destDir, { dryRun: opts.dryRun });
+          icon = actual === 'updated' ? '~' : '+';
+          text = actual;
+        } else {
+          const skip = plan.skip.find(s => s.name === name);
+          icon = skip.reason === 'foreign' ? '!' : '→';
+          text = skip.reason === 'foreign' ? 'foreign — not managed' : 'skipped (symlink)';
+        }
+        if (!outcomes.has(name)) outcomes.set(name, []);
+        outcomes.get(name).push({ dest, icon, text });
+      }
+
+      if (plan.prune.length > 0) {
+        uninstallSkills(destDir, plan.prune, { dryRun: opts.dryRun });
+        notes.push(`- ${dest.path}: pruned ${plan.prune.join(', ')} (no longer in source)`);
+      }
+      if (!opts.dryRun) {
+        // Skipped skills stay unowned so they are never overwritten or pruned later.
+        const skipped = new Set(plan.skip.map(s => s.name));
+        writeManifest(destDir, skillNames.filter(n => !skipped.has(n)));
+      }
+    } catch (err) {
+      notes.push(`✗ ${dest.path}: ${err.message}`);
+    }
+  }
+
+  skillNames.forEach((name, skillIndex) => {
+    const skillBranch = skillIndex === skillNames.length - 1 ? '└──' : '├──';
+    const childPrefix = skillIndex === skillNames.length - 1 ? '    ' : '│   ';
+    console.log(`${skillBranch} ${name}`);
+
+    const leaves = outcomes.get(name) ?? [];
+    leaves.forEach((leaf, leafIndex) => {
+      const leafBranch = leafIndex === leaves.length - 1 ? '└──' : '├──';
+      console.log(`${childPrefix}${leafBranch} ${leaf.dest.path.padEnd(pathWidth)}  ${leaf.icon} ${leaf.text}`);
+    });
+  });
+
+  for (const note of notes) {
+    console.log(`  ${note}`);
+  }
+}
+
+// Remove managed skills in one destination; returns note lines (no output).
+function clearManagedSkills(dest, opts) {
+  const notes = [];
+  const destDir = expandHome(dest.path);
+  try {
+    const managed = readManifest(destDir);
+    const linked = managed.filter(n => isSymlink(path.join(destDir, n)));
+    const removable = managed.filter(n => !linked.includes(n));
+    if (managed.length === 0 && !fs.existsSync(path.join(destDir, SKILLS_MANIFEST_NAME))) {
+      notes.push(`∅ ${dest.path}: no managed skills`);
+      return notes;
+    }
+    if (removable.length > 0) {
+      uninstallSkills(destDir, removable, { dryRun: opts.dryRun });
+      notes.push(`~ ${dest.path}: removed ${removable.join(', ')}`);
+    } else {
+      notes.push(`∅ ${dest.path}: nothing removable`);
+    }
+    if (!opts.dryRun) {
+      if (linked.length > 0) {
+        writeManifest(destDir, linked);
+      } else {
+        fs.rmSync(path.join(destDir, SKILLS_MANIFEST_NAME), { force: true });
+      }
+    }
+    for (const name of linked) {
+      notes.push(`→ ${dest.path}/${name}: now a symlink — left untouched, dropped from manifest`);
+    }
+  } catch (err) {
+    notes.push(`✗ ${dest.path}: ${err.message}`);
+  }
+  return notes;
+}
+
+function runSkillsDelete(opts, destinations = SKILL_DESTINATIONS) {
+  for (const dest of destinations) {
+    for (const note of clearManagedSkills(dest, opts)) {
+      console.log(`  ${note}`);
+    }
+  }
+}
+
+function runSkillsStatus(opts, destinations = SKILL_DESTINATIONS) {
+  const skillNames = listSourceSkills();
+  if (skillNames.length === 0) {
+    console.log(`No skills found in ${SKILLS_SOURCE_DIR} (expected <name>/SKILL.md).`);
+    return;
+  }
+
+  const pathWidth = Math.max(...destinations.map(d => d.path.length));
+  skillNames.forEach((name, skillIndex) => {
+    const skillBranch = skillIndex === skillNames.length - 1 ? '└──' : '├──';
+    const childPrefix = skillIndex === skillNames.length - 1 ? '    ' : '│   ';
+    console.log(`${skillBranch} ${name}`);
+
+    destinations.forEach((dest, destIndex) => {
+      const destDir = expandHome(dest.path);
+      const state = skillState(destDir, SKILLS_SOURCE_DIR, name, readManifest(destDir));
+      const symbols = {
+        'in-sync': '✓', 'stale': '~', 'missing': '+', 'foreign': '!', 'symlink': '→',
+      };
+      const symbol = symbols[state] ?? '!';
+      const branch = destIndex === destinations.length - 1 ? '└──' : '├──';
+      console.log(
+        `${childPrefix}${branch} ${dest.path.padEnd(pathWidth)}  ${symbol} ${state}  ← ${dest.agents.join(', ')}`,
+      );
+    });
+  });
+
+  for (const dest of destinations) {
+    const destDir = expandHome(dest.path);
+    const orphaned = readManifest(destDir).filter(n => !skillNames.includes(n));
+    if (orphaned.length > 0) {
+      console.log(`  ! managed but no longer in source, pruned on next sync: ${orphaned.join(', ')} (${dest.path})`);
+    }
+  }
 }
 
 function parseAgentIds(input) {
@@ -274,7 +598,9 @@ function parseArgs(argv) {
     delete: false,
     dryRun: false,
     follow: false,
+    instructions: false,
     prune: false,
+    skills: false,
     status: false,
     help: false,
   };
@@ -289,8 +615,12 @@ function parseArgs(argv) {
       opts.dryRun = true;
     } else if (arg === '--follow-symlinks') {
       opts.follow = true;
+    } else if (arg === '--instructions') {
+      opts.instructions = true;
     } else if (arg === '--prune-unselected') {
       opts.prune = true;
+    } else if (arg === '--skills') {
+      opts.skills = true;
     } else if (arg === '--status') {
       opts.status = true;
     } else if (arg === '--agents' || arg === '-a' || arg.startsWith('--agents=')) {
@@ -306,11 +636,12 @@ function parseArgs(argv) {
   return opts;
 }
 
-async function interactiveSelect() {
-  const selected = new Set(TARGETS.map(t => t.id));
+// Generic interactive multi-select over { id, label } items; returns selected ids.
+async function multiSelect({ title, items, hint }) {
+  const selected = new Set(items.map(i => i.id));
   let cursor = 0;
   let renderCount = 0;
-  const lineCount = TARGETS.length + 2; // list + hint + empty line
+  const lineCount = items.length + 2; // list + hint + empty line
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -322,18 +653,18 @@ async function interactiveSelect() {
     if (renderCount === 0) {
       // First render: clear and print header
       process.stdout.write('\x1B[2J\x1B[H');
-      console.log('Select agents to sync (Space to toggle, Enter to confirm):\n');
+      console.log(`${title}\n`);
     } else {
       // Subsequent: move cursor up to rewrite
       process.stdout.write(`\x1B[${lineCount}A`);
     }
 
-    TARGETS.forEach((t, i) => {
-      const check = selected.has(t.id) ? '●' : '○';
+    items.forEach((item, i) => {
+      const check = selected.has(item.id) ? '●' : '○';
       const pointer = i === cursor ? '❯' : ' ';
-      console.log(`  ${pointer} ${check}  ${t.agent.padEnd(16)} (${t.id})`);
+      console.log(`  ${pointer} ${check}  ${item.label}`);
     });
-    console.log('\n↑↓ Navigate  Space Toggle  Enter Confirm  a All  n None');
+    console.log(`\n${hint}`);
 
     renderCount++;
   }
@@ -350,18 +681,18 @@ async function interactiveSelect() {
       if (!key) return;
 
       if (key.name === 'up' || (key.name === 'k' && !key.ctrl)) {
-        cursor = (cursor - 1 + TARGETS.length) % TARGETS.length;
+        cursor = (cursor - 1 + items.length) % items.length;
         render();
       } else if (key.name === 'down' || (key.name === 'j' && !key.ctrl)) {
-        cursor = (cursor + 1) % TARGETS.length;
+        cursor = (cursor + 1) % items.length;
         render();
       } else if (key.name === 'space') {
-        const id = TARGETS[cursor].id;
+        const id = items[cursor].id;
         if (selected.has(id)) selected.delete(id);
         else selected.add(id);
         render();
       } else if (str === 'a') {
-        TARGETS.forEach(t => selected.add(t.id));
+        items.forEach(i => selected.add(i.id));
         render();
       } else if (str === 'n') {
         selected.clear();
@@ -387,46 +718,81 @@ async function interactiveSelect() {
   });
 }
 
+function interactiveSelectAgents() {
+  return multiSelect({
+    title: 'Select agents to sync (Space to toggle, Enter to confirm):',
+    items: TARGETS.map(t => ({ id: t.id, label: `${t.agent.padEnd(16)} (${t.id})` })),
+    hint: '↑↓ Navigate  Space Toggle  Enter Confirm  a All  n None',
+  });
+}
+
+function interactiveSelectKinds(verb = 'sync') {
+  return multiSelect({
+    title: `Select what to ${verb} (Space to toggle, Enter to confirm):`,
+    items: [
+      { id: 'instructions', label: 'Instruction blocks (per-agent AGENTS.md files)' },
+      { id: 'skills', label: 'Skills (skills/ → agent skill directories)' },
+    ],
+    hint: '↑↓ Navigate  Space Toggle  Enter Confirm  a All  n None',
+  });
+}
+
 function runStatus(targets, opts) {
   const template = fs.readFileSync(SOURCE_FILE, 'utf8');
+  const idWidth = Math.max(...targets.map(t => t.id.length));
 
-  for (const target of targets) {
+  targets.forEach((target, index) => {
     const targetPath = expandHome(target.path);
-    let line;
+    let symbol;
+    let text;
 
     if (isSymlink(targetPath) && !opts.follow) {
-      line = '→ symlink (skipped by default; use --follow-symlinks to inspect)';
+      symbol = '→';
+      text = 'symlink (skipped by default; use --follow-symlinks to inspect)';
     } else {
       const { state, linked } = blockState(targetPath, template);
       const via = linked ? ` (via symlink → ${fs.readlinkSync(targetPath)})` : '';
       switch (state) {
-        case 'in-sync':  line = `✓ in-sync${via}`; break;
-        case 'stale':    line = `~ stale — managed block differs from current template${via}`; break;
-        case 'no-block': line = `- no managed block${via}`; break;
-        case 'missing':  line = `+ missing — file will be created on next sync`; break;
-        case 'symlink':  line = `→ dangling symlink (skipped by default)`; break;
-        case 'broken':   line = `! broken markers — fix the file manually before syncing`; break;
-        default:         line = `! ${state}`; break;
+        case 'in-sync':  symbol = '✓'; text = `in-sync${via}`; break;
+        case 'stale':    symbol = '~'; text = `stale — managed block differs from current template${via}`; break;
+        case 'no-block': symbol = '-'; text = 'no managed block'; break;
+        case 'missing':  symbol = '+'; text = 'missing — file will be created on next sync'; break;
+        case 'symlink':  symbol = '→'; text = 'dangling symlink (skipped by default)'; break;
+        case 'broken':   symbol = '!'; text = 'broken markers — fix the file manually before syncing'; break;
+        default:         symbol = '!'; text = state; break;
       }
     }
-    console.log(`  ${line} (${target.path})`);
-  }
+
+    const branch = index === targets.length - 1 ? '└──' : '├──';
+    console.log(`${branch} ${target.id.padEnd(idWidth)}  ${symbol} ${text}  ${target.path}`);
+  });
+}
+
+// Render agent-keyed rows as a one-level tree in TARGETS order.
+function renderIdTree(rows) {
+  if (rows.length === 0) return;
+  const idWidth = Math.max(...rows.map(r => r.id.length));
+  rows.forEach((row, index) => {
+    const branch = index === rows.length - 1 ? '└──' : '├──';
+    console.log(`${branch} ${row.id.padEnd(idWidth)}  ${row.symbol} ${row.text}  ${row.path}`);
+  });
 }
 
 function runDelete(targets, opts) {
   const deleteSet = new Set(targets);
   const reals = new Map(TARGETS.map(t => [t.id, resolveTarget(expandHome(t.path))]));
+  const rows = [];
 
   for (const target of targets) {
     const targetPath = expandHome(target.path);
     try {
       if (isSymlink(targetPath) && !opts.follow) {
-        console.log(`  → ${target.agent}: Symlink skipped (use --follow-symlinks to operate through it) (${target.path})`);
+        rows.push({ id: target.id, symbol: '→', text: 'skipped (symlink)', path: target.path });
         continue;
       }
 
       if (!fs.existsSync(targetPath)) {
-        console.log(`  ∅ ${target.agent}: File does not exist (${target.path})`);
+        rows.push({ id: target.id, symbol: '∅', text: 'file does not exist', path: target.path });
         continue;
       }
 
@@ -434,18 +800,19 @@ function runDelete(targets, opts) {
       const sharers = TARGETS.filter(o => o.id !== target.id && !deleteSet.has(o) && reals.get(o.id) === real);
       if (sharers.length > 0) {
         const names = sharers.map(s => s.agent).join(', ');
-        console.log(`  ! ${target.agent}: Skipped — the same file also serves ${names}; include them in the deletion or break the link first`);
+        rows.push({ id: target.id, symbol: '!', text: `shared file also serves ${names} — include them or break the link`, path: target.path });
         continue;
       }
 
       const result = removeBlock(targetPath, { dryRun: opts.dryRun });
-      const icon = result.action === 'removed' || result.action === 'cleared' ? '~' : '∅';
-      const suffix = opts.dryRun ? ' (dry run)' : '';
-      console.log(`  ${icon} ${target.agent}: ${result.message}${suffix} (${target.path})`);
+      const symbol = result.action === 'removed' || result.action === 'cleared' ? '~' : '∅';
+      rows.push({ id: target.id, symbol, text: result.message, path: target.path });
     } catch (err) {
-      console.error(`  ✗ ${target.agent}: ${err.message}`);
+      rows.push({ id: target.id, symbol: '✗', text: err.message, path: target.path });
     }
   }
+
+  renderIdTree(rows);
 }
 
 function runSync(selectedTargets, interactive, opts) {
@@ -454,10 +821,8 @@ function runSync(selectedTargets, interactive, opts) {
     process.exit(1);
   }
   const template = fs.readFileSync(SOURCE_FILE, 'utf8');
-
-  if (opts.dryRun) {
-    console.log('(dry run — no changes will be written)\n');
-  }
+  const rows = [];
+  const notes = [];
 
   // Coverage behavior: in interactive mode deselection is explicit, so
   // unselected agents always get their blocks removed. With --agents, pruning
@@ -468,13 +833,12 @@ function runSync(selectedTargets, interactive, opts) {
       const targetPath = expandHome(target.path);
       try {
         if (isSymlink(targetPath) && !opts.follow) {
-          console.log(`  → ${target.agent}: Symlink skipped (not selected)`);
+          rows.push({ id: target.id, symbol: '→', text: 'skipped (symlink)', path: target.path });
           continue;
         }
         const result = removeBlock(targetPath, { dryRun: opts.dryRun });
         if (result.action === 'removed' || result.action === 'cleared') {
-          const suffix = opts.dryRun ? ' (dry run)' : '';
-          console.log(`  - ${target.agent}: Block removed (not selected)${suffix}`);
+          rows.push({ id: target.id, symbol: '-', text: 'removed (not selected)', path: target.path });
         }
       } catch (err) {
         console.error(`  ✗ ${target.agent}: ${err.message}`);
@@ -491,14 +855,14 @@ function runSync(selectedTargets, interactive, opts) {
     try {
       const linked = isSymlink(targetPath);
       if (linked && !opts.follow) {
-        console.log(`  → ${target.agent}: Symlink skipped (use --follow-symlinks to operate through it) (${target.path})`);
+        rows.push({ id: target.id, symbol: '→', text: 'skipped (symlink)', path: target.path });
         continue;
       }
 
       const real = resolveTarget(targetPath);
       const owner = writtenReals.get(real);
       if (owner) {
-        console.log(`  = ${target.agent}: Shared file with ${owner.agent}, already synced (${target.path})`);
+        rows.push({ id: target.id, symbol: '=', text: `shared with ${owner.agent} — written once`, path: target.path });
         continue;
       }
       writtenReals.set(real, target);
@@ -506,20 +870,31 @@ function runSync(selectedTargets, interactive, opts) {
       const targetDir = path.dirname(targetPath);
       if (!linked && !fs.existsSync(targetDir)) {
         if (opts.dryRun) {
-          console.log(`  • ${target.agent}: directory would be created: ${targetDir}`);
+          notes.push(`• ${target.agent}: directory would be created (${targetDir})`);
         } else {
           fs.mkdirSync(targetDir, { recursive: true });
-          console.log(`  Created directory: ${targetDir}`);
         }
       }
 
+      // Skip the write when the managed block already matches the template,
+      // so "updated" always means the content actually changed.
+      if (blockState(targetPath, template).state === 'in-sync') {
+        rows.push({ id: target.id, symbol: '=', text: 'in-sync', path: target.path });
+        continue;
+      }
+
       const action = syncFile(targetPath, template, { dryRun: opts.dryRun });
-      const icon = action === 'updated' ? '~' : '+';
-      const suffix = opts.dryRun ? ' (dry run)' : '';
-      console.log(`  ${icon} ${target.agent}: Block ${action.padEnd(8)}${suffix} (${target.path})`);
+      rows.push({ id: target.id, symbol: action === 'updated' ? '~' : '+', text: action, path: target.path });
     } catch (err) {
       console.error(`  ✗ ${target.agent}: ${err.message}`);
     }
+  }
+
+  const order = new Map(TARGETS.map((t, i) => [t.id, i]));
+  rows.sort((a, b) => order.get(a.id) - order.get(b.id));
+  renderIdTree(rows);
+  for (const note of notes) {
+    console.log(`  ${note}`);
   }
 }
 
@@ -537,36 +912,102 @@ async function main() {
   if (opts.status && opts.dryRun) {
     fail('--status is read-only; --dry-run is not needed');
   }
-
-  // Determine which agents to operate on
-  let selectedTargets;
-  let interactive = false;
-
-  if (opts.agents !== null) {
-    selectedTargets = resolveTargets(parseAgentIds(opts.agents));
-  } else if (opts.status) {
-    selectedTargets = TARGETS;
-  } else {
-    interactive = true;
-    const selectedIds = await interactiveSelect();
-    if (selectedIds.length === 0) {
-      console.log('No agents selected. Exiting.');
-      return;
-    }
-    selectedTargets = TARGETS.filter(t => selectedIds.includes(t.id));
+  if (opts.dryRun) {
+    console.log('(dry run — no changes will be written)');
   }
 
+  const agentIds = opts.agents !== null ? parseAgentIds(opts.agents) : null;
+  // Kinds: a kind flag narrows the run; with no kind flag every kind runs, so
+  // categories added later are covered by bare commands automatically.
+  const anyKindFlag = opts.instructions || opts.skills;
+  const kinds = {
+    instructions: opts.instructions || !anyKindFlag,
+    skills: opts.skills || !anyKindFlag,
+  };
+
   if (opts.status) {
-    runStatus(selectedTargets, opts);
+    if (kinds.instructions) {
+      console.log('Instructions:');
+      runStatus(agentIds === null ? TARGETS : resolveTargets(agentIds), opts);
+    }
+    if (kinds.skills) {
+      console.log('\nSkills:');
+      runSkillsStatus(opts, resolveSkillDestinations(agentIds ?? ['all']));
+    }
     return;
   }
 
   if (opts.delete) {
-    runDelete(selectedTargets, opts);
+    let selectedKinds = kinds;
+    let ids = agentIds;
+    if (!anyKindFlag && ids === null) {
+      // Destructive and unscoped: confirm both steps interactively, same
+      // shape as an interactive sync.
+      const picked = await interactiveSelectKinds('remove');
+      if (picked.length === 0) {
+        console.log('Nothing selected. Exiting.');
+        return;
+      }
+      selectedKinds = {
+        instructions: picked.includes('instructions'),
+        skills: picked.includes('skills'),
+      };
+      ids = await interactiveSelectAgents();
+      if (ids.length === 0) {
+        console.log('No agents selected. Exiting.');
+        return;
+      }
+    } else if (ids === null) {
+      const picked = await interactiveSelectAgents();
+      if (picked.length === 0) {
+        console.log('No agents selected. Exiting.');
+        return;
+      }
+      ids = picked;
+    }
+    if (selectedKinds.instructions) {
+      console.log('Instructions:');
+      runDelete(resolveTargets(ids), opts);
+    }
+    if (selectedKinds.skills) {
+      console.log('\nSkills:');
+      runSkillsDelete(opts, resolveSkillDestinations(ids));
+    }
     return;
   }
 
-  runSync(selectedTargets, interactive, opts);
+  // Sync: fully interactive when nothing is explicit.
+  if (!anyKindFlag && agentIds === null) {
+    const picked = await interactiveSelectKinds();
+    if (picked.length === 0) {
+      console.log('Nothing selected. Exiting.');
+      return;
+    }
+    const ids = await interactiveSelectAgents();
+    if (ids.length === 0) {
+      console.log('No agents selected. Exiting.');
+      return;
+    }
+    if (picked.includes('instructions')) {
+      console.log('Instructions:');
+      runSync(resolveTargets(ids), true, opts);
+    }
+    if (picked.includes('skills')) {
+      console.log('\nSkills:');
+      runSkillsSync(opts, resolveSkillDestinations(ids), { pruneOthers: true });
+    }
+    return;
+  }
+
+  const ids = agentIds ?? ['all'];
+  if (kinds.instructions) {
+    console.log('Instructions:');
+    runSync(resolveTargets(ids), false, opts);
+  }
+  if (kinds.skills) {
+    console.log('\nSkills:');
+    runSkillsSync(opts, resolveSkillDestinations(ids), { pruneOthers: opts.prune });
+  }
 }
 
 module.exports = {
@@ -574,6 +1015,9 @@ module.exports = {
   START_MARKER,
   END_MARKER,
   MANAGE_NOTICE,
+  SKILLS_SOURCE_DIR,
+  SKILLS_MANIFEST_NAME,
+  SKILL_DESTINATIONS,
   expandHome,
   isSymlink,
   resolveTarget,
@@ -582,6 +1026,15 @@ module.exports = {
   syncFile,
   removeBlock,
   blockState,
+  listSourceSkills,
+  readManifest,
+  writeManifest,
+  hashDir,
+  skillState,
+  planSkillsSync,
+  installSkill,
+  uninstallSkills,
+  resolveSkillDestinations,
   parseAgentIds,
   resolveTargets,
   parseArgs,
