@@ -286,8 +286,11 @@ function blockState(targetPath, template) {
     return { state: 'broken', linked };
   }
 
-  const current = content.slice(block.startIdx, block.endIdx + END_MARKER.length);
-  const expected = wrapContent(template);
+  // Compare line-ending-insensitively: Windows checkouts (git autocrlf) hold
+  // CRLF templates while existing blocks may have been written with LF.
+  const normalize = s => s.replace(/\r\n/g, '\n');
+  const current = normalize(content.slice(block.startIdx, block.endIdx + END_MARKER.length));
+  const expected = normalize(wrapContent(template));
   return { state: current === expected ? 'in-sync' : 'stale', linked };
 }
 
@@ -862,7 +865,7 @@ function runSync(selectedTargets, interactive, opts) {
       const real = resolveTarget(targetPath);
       const owner = writtenReals.get(real);
       if (owner) {
-        rows.push({ id: target.id, symbol: '=', text: `shared with ${owner.agent} — written once`, path: target.path });
+        rows.push({ id: target.id, symbol: '~', text: `updated (shared with ${owner.agent}, written once)`, path: target.path });
         continue;
       }
       writtenReals.set(real, target);

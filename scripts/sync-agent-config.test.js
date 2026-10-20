@@ -230,6 +230,13 @@ describe('blockState', () => {
     assert.equal(blockState(path.join(dir, 'link.md'), TEMPLATE).state, 'in-sync');
     assert.equal(blockState(path.join(dir, 'dangling.md'), TEMPLATE).state, 'symlink');
   });
+
+  test('compares CRLF blocks as in-sync (Windows autocrlf checkouts)', (t) => {
+    const dir = tmpDir(t);
+    const file = path.join(dir, 'CONFIG.md');
+    fs.writeFileSync(file, wrapContent(TEMPLATE).replace(/\n/g, '\r\n'), 'utf8');
+    assert.equal(blockState(file, TEMPLATE).state, 'in-sync');
+  });
 });
 
 describe('argument parsing', () => {
@@ -429,7 +436,7 @@ describe('CLI: symlinks', () => {
 
     const result = runCli(home, ['--agents', 'claude,codex', '--follow-symlinks']);
     assert.equal(result.status, 0, result.stderr);
-    assert.ok(result.stdout.includes('shared with Claude Code'));
+    assert.ok(result.stdout.includes('updated (shared with Claude Code'));
 
     const content = fs.readFileSync(shared, 'utf8');
     assert.ok(content.startsWith('USER CONTENT\n'));
@@ -764,7 +771,7 @@ describe('CLI: skills', () => {
     const home = tmpDir(t);
     const result = runCli(home, ['--agents', 'gemini,agy']);
     assert.equal(result.status, 0, result.stderr);
-    assert.ok(result.stdout.includes('shared with Gemini CLI'));
+    assert.ok(result.stdout.includes('updated (shared with Gemini CLI'));
 
     const content = fs.readFileSync(targetPathIn(home, 'agy'), 'utf8');
     assert.equal(countMarkers(content), 1);
