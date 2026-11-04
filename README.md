@@ -13,6 +13,16 @@ A personal collection of conventions and best practices for AI coding agents. Pa
 | `vale/` | Optional file-layer enforcement: a two-tier Vale style pack (error-tier filler words, warning-tier software-jargon watch list) with wiring notes. See [vale/README.md](vale/README.md). |
 | `scripts/sync-agent-config.js` | Syncs `AGENTS.template.md` into multiple agent config files and `skills/` into the agents' skills directories (see below). |
 
+## Bundled Skills
+
+The repository maintains the following skills under `skills/`. The sync script distributes only these repository-owned skills; skills supplied by agents, plugins, or other installations are outside this list.
+
+| Skill | Purpose |
+|-------|---------|
+| [`init-agents-md`](skills/init-agents-md/SKILL.md) | Creates, audits, or updates a repository-level `AGENTS.md` from verified repository evidence. |
+| [`plain-speak`](skills/plain-speak/SKILL.md) | Rewrites vague or jargon-heavy statements as concrete actions on concrete objects. |
+| [`ro`](skills/ro/SKILL.md) | Restricts the agent to read-only investigation and reporting without changing files or external state. |
+
 ## Quick Start
 
 ### Prerequisites

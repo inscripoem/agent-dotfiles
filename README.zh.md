@@ -13,6 +13,16 @@
 | `vale/` | 可选的文件层硬校验：双档 Vale 样式包（error 级纯填充词 + warning 级软工黑话观察名单）及接线说明。见 [vale/README.md](vale/README.md)。 |
 | `scripts/sync-agent-config.js` | 自动将模板同步到多个 Agent 配置文件，并将 `skills/` 分发到各 Agent 的 skills 目录（见下文）。 |
 
+## 内置 Skills
+
+本仓库在 `skills/` 中维护以下 skills。同步脚本只分发这些由本仓库维护的 skills；Agent、插件或其他安装来源提供的 skills 不在此清单中。
+
+| Skill | 用途 |
+|-------|------|
+| [`init-agents-md`](skills/init-agents-md/SKILL.md) | 根据仓库中的实际文件和配置，创建、审查或更新仓库级 `AGENTS.md`。 |
+| [`plain-speak`](skills/plain-speak/SKILL.md) | 将含糊或堆砌术语的表述改写为针对具体对象的具体动作。 |
+| [`ro`](skills/ro/SKILL.md) | 将 Agent 限制为只读调查和报告，不修改文件或外部状态。 |
+
 ## 快速开始
 
 ### 先决条件
