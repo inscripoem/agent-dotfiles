@@ -48,23 +48,25 @@ node scripts/sync-agent-config.js
 
 **各 Agent 及其目标：**
 
-| Agent | 指令文件 | Skills 目标目录 |
-|-------|----------|-----------------|
-| Claude Code（`claude`） | `~/.claude/CLAUDE.md` | `~/.claude/skills/` |
-| Codex（`codex`） | `~/.codex/AGENTS.md` | `~/.agents/skills/`（共享） |
-| DeepSeek Harness（`dsh`） | `~/.dsh/AGENTS.md` | `~/.agents/skills/`（共享） |
-| Gemini CLI（`gemini`） | `~/.gemini/GEMINI.md` | `~/.agents/skills/`（共享） |
-| Antigravity CLI（`agy`） | `~/.gemini/GEMINI.md` | `~/.gemini/antigravity-cli/skills/` |
-| OpenCode（`opencode`） | `~/.config/opencode/AGENTS.md` | `~/.agents/skills/`（共享） |
-| Pi（`pi`） | `~/.pi/agent/AGENTS.md` | `~/.agents/skills/`（共享） |
-| Trae CN（`trae-cn`） | `~/.trae-cn/user_rules/agent-dotfiles.md` | `~/.trae-cn/skills/` |
-| ZCode（`zcode`） | `~/.zcode/AGENTS.md` | `~/.agents/skills/`（共享） |
+| Agent | 指令文件 | Skills 目标目录 | 目录覆盖变量 |
+|-------|----------|-----------------|--------------|
+| Claude Code（`claude`） | `~/.claude/CLAUDE.md` | `~/.claude/skills/` | `CLAUDE_CONFIG_DIR` |
+| Codex（`codex`） | `~/.codex/AGENTS.md` | `~/.agents/skills/`（共享） | `CODEX_HOME` |
+| DeepSeek Harness（`dsh`） | `~/.dsh/AGENTS.md` | `~/.agents/skills/`（共享） | `DSH_HOME` |
+| Gemini CLI（`gemini`） | `~/.gemini/GEMINI.md` | `~/.agents/skills/`（共享） | `GEMINI_CLI_HOME`（基目录） |
+| Antigravity CLI（`agy`） | `~/.gemini/GEMINI.md` | `~/.gemini/antigravity-cli/skills/` | — |
+| OpenCode（`opencode`） | `~/.config/opencode/AGENTS.md` | `~/.agents/skills/`（共享） | `XDG_CONFIG_HOME` |
+| Pi（`pi`） | `~/.pi/agent/AGENTS.md` | `~/.agents/skills/`（共享） | `PI_CODING_AGENT_DIR` |
+| Trae CN（`trae-cn`） | `~/.trae-cn/user_rules/agent-dotfiles.md` | `~/.trae-cn/skills/` | — |
+| ZCode（`zcode`） | `~/.zcode/AGENTS.md` | `~/.agents/skills/`（共享） | — |
 
 `~/.agents/skills/` 是共享目录：一次同步即可覆盖 ZCode、Codex、OpenCode、Gemini CLI、pi、dsh。Skills 是当前的跨 Agent 通用原语——在 ZCode、pi、Antigravity CLI、Claude Code 中可作为 slash command 调用；Codex 使用 `/skills` 或 `$name`；OpenCode 通过 `opencode/slash` 元数据字段暴露。
 
-> dsh（DeepSeek Harness）从 `$DSH_HOME/AGENTS.md`（默认 `~/.dsh/AGENTS.md`）读取用户全局指令，请保持 `DSH_HOME` 未设置或指向 `~/.dsh`。其对 `~/.agents/skills` 的支持已于 2026 年 10 月实测验证。
+> 以下目录覆盖变量已设置时会被遵循：`CLAUDE_CONFIG_DIR`（同时覆盖 Claude 的 skills 目录）、`CODEX_HOME`、`DSH_HOME`、`GEMINI_CLI_HOME`、`XDG_CONFIG_HOME`、`PI_CODING_AGENT_DIR`。`GEMINI_CLI_HOME` 是基目录，指令文件实际位于 `$GEMINI_CLI_HOME/.gemini/GEMINI.md`。OpenCode 的实现支持 `XDG_CONFIG_HOME`，但其文档只列出 `~/.config/opencode`。Antigravity CLI、Trae CN、ZCode 未提供目录覆盖变量，路径保持固定。
 >
-> agy（Antigravity CLI）与 Gemini CLI 共享同一指令文件——两者同时勾选时只写入一次；删除时需要同时包含两者。
+> 设置 `GEMINI_CLI_HOME` 后，Gemini CLI 与 Antigravity CLI 不再共享同一文件：Gemini 跟随覆盖变量，Antigravity 仍读 `~/.gemini/GEMINI.md`。脚本分别写入一次，并将两者视为独立文件处理删除；未设置该变量时两者共享一个文件，只写入一次，且只有同时选中两者时才允许删除。
+>
+> dsh（DeepSeek Harness）从 `$DSH_HOME/AGENTS.md`（默认 `~/.dsh/AGENTS.md`）读取用户全局指令。其对 `~/.agents/skills` 的支持已于 2026 年 10 月实测验证。
 
 ## 模板内容概览
 
@@ -117,6 +119,7 @@ node scripts/sync-agent-config.js --skills --delete --agents all  # 单一类别
 - Skills 所有权：每个目标目录中的 `.agent-dotfiles-manifest.json` 记录本脚本托管的 skills——非托管 skills 永不被覆盖或清理；已从仓库移除的托管 skills 会在下次同步时清理；非托管同名 skill 会被报告并跳过
 - 符号链接策略：目标为符号链接时默认跳过并警告（绝不静默接管 stow 式配置）；`--follow-symlinks` 可穿透链接写入，多个 Agent 链接到同一文件时只写一次；删除时若会波及未包含的共享文件则拒绝执行
 - `--dry-run` 预览不写入；`~` 跨平台展开
+- 目录覆盖：`CLAUDE_CONFIG_DIR`、`CODEX_HOME`、`DSH_HOME`、`GEMINI_CLI_HOME`、`XDG_CONFIG_HOME`、`PI_CODING_AGENT_DIR` 已设置时生效；输出显示解析后的路径，并附加 `（via 变量名）`
 - 测试：`npm test`（使用 Node 内置测试运行器，无额外依赖）
 
 ## 未来计划

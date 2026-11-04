@@ -12,7 +12,8 @@ const mod = require('./sync-agent-config.js');
 const {
   TARGETS, START_MARKER, END_MARKER,
   SKILLS_SOURCE_DIR, SKILLS_MANIFEST_NAME, SKILL_DESTINATIONS,
-  expandHome, isSymlink, resolveTarget, wrapContent, locateBlock,
+  expandHome, resolveTargetPath, describeTargetPath,
+  isSymlink, resolveTarget, wrapContent, locateBlock,
   syncFile, removeBlock, blockState,
   listSourceSkills, readManifest, writeManifest, hashDir,
   skillState, planSkillsSync, installSkill, resolveSkillDestinations,
@@ -27,13 +28,40 @@ function tmpDir(t) {
   return dir;
 }
 
+// Directory-override variables honored by the script. Clearing them keeps the
+// tests independent of the developer's own shell configuration.
+const OVERRIDE_VARS = [
+  'CLAUDE_CONFIG_DIR', 'CODEX_HOME', 'DSH_HOME',
+  'GEMINI_CLI_HOME', 'XDG_CONFIG_HOME', 'PI_CODING_AGENT_DIR',
+];
+
 // Run the CLI with HOME pointed at a temp dir so expandHome/os.homedir()
 // resolve inside the sandbox instead of the real home directory.
-function runCli(home, args) {
+function runCli(home, args, extraEnv = {}) {
+  const env = { ...process.env, HOME: home };
+  for (const name of OVERRIDE_VARS) delete env[name];
   return spawnSync(process.execPath, [SCRIPT, ...args], {
     encoding: 'utf8',
-    env: { ...process.env, HOME: home },
+    env: { ...env, ...extraEnv },
   });
+}
+
+// Run fn with the given environment overrides; undefined removes a variable.
+function withEnv(vars, fn) {
+  const saved = {};
+  for (const [name, value] of Object.entries(vars)) {
+    saved[name] = process.env[name];
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+  try {
+    return fn();
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
 }
 
 function countMarkers(content) {
@@ -239,6 +267,62 @@ describe('blockState', () => {
   });
 });
 
+describe('resolveTargetPath', () => {
+  const targetFor = id => TARGETS.find(t => t.id === id);
+  const clearOverrides = Object.fromEntries(OVERRIDE_VARS.map(name => [name, undefined]));
+
+  test('falls back to the default path when no override is set', () => {
+    withEnv(clearOverrides, () => {
+      assert.equal(resolveTargetPath(targetFor('dsh')), path.join(os.homedir(), '.dsh', 'AGENTS.md'));
+    });
+  });
+
+  test('uses the override variable when set', () => {
+    withEnv({ DSH_HOME: '/tmp/custom-dsh' }, () => {
+      assert.equal(resolveTargetPath(targetFor('dsh')), path.normalize('/tmp/custom-dsh/AGENTS.md'));
+    });
+  });
+
+  test('places Gemini config under <GEMINI_CLI_HOME>/.gemini', () => {
+    withEnv({ GEMINI_CLI_HOME: '/tmp/gemini-base' }, () => {
+      assert.equal(
+        resolveTargetPath(targetFor('gemini')),
+        path.normalize('/tmp/gemini-base/.gemini/GEMINI.md'),
+      );
+    });
+  });
+
+  test('honors XDG_CONFIG_HOME for OpenCode', () => {
+    withEnv({ XDG_CONFIG_HOME: '/tmp/xdg' }, () => {
+      assert.equal(
+        resolveTargetPath(targetFor('opencode')),
+        path.normalize('/tmp/xdg/opencode/AGENTS.md'),
+      );
+    });
+  });
+
+  test('honors PI_CODING_AGENT_DIR for Pi', () => {
+    withEnv({ PI_CODING_AGENT_DIR: '/tmp/pi-agent' }, () => {
+      assert.equal(resolveTargetPath(targetFor('pi')), path.normalize('/tmp/pi-agent/AGENTS.md'));
+    });
+  });
+
+  test('treats an empty override as unset', () => {
+    withEnv({ DSH_HOME: '' }, () => {
+      assert.equal(resolveTargetPath(targetFor('dsh')), path.join(os.homedir(), '.dsh', 'AGENTS.md'));
+    });
+  });
+
+  test('annotates the resolved path with the variable in use', () => {
+    withEnv({ DSH_HOME: '/tmp/custom-dsh' }, () => {
+      assert.match(describeTargetPath(targetFor('dsh')), /via DSH_HOME\)$/);
+    });
+    withEnv(clearOverrides, () => {
+      assert.doesNotMatch(describeTargetPath(targetFor('dsh')), /via /);
+    });
+  });
+});
+
 describe('argument parsing', () => {
   test('parses agent lists in all supported forms', () => {
     assert.deepEqual(parseAgentIds('claude, codex'), ['claude', 'codex']);
@@ -411,6 +495,61 @@ describe('CLI: sync', () => {
     const skillsOnly = runCli(home, ['--skills', '--status']);
     assert.ok(skillsOnly.stdout.includes('└── ro'));
     assert.equal(skillsOnly.stdout.includes('CLAUDE.md'), false, 'instruction section excluded');
+  });
+});
+
+describe('CLI: directory overrides', () => {
+  const cases = [
+    ['claude', 'CLAUDE_CONFIG_DIR', 'CLAUDE.md'],
+    ['codex', 'CODEX_HOME', 'AGENTS.md'],
+    ['dsh', 'DSH_HOME', 'AGENTS.md'],
+    ['gemini', 'GEMINI_CLI_HOME', path.join('.gemini', 'GEMINI.md')],
+    ['opencode', 'XDG_CONFIG_HOME', path.join('opencode', 'AGENTS.md')],
+    ['pi', 'PI_CODING_AGENT_DIR', 'AGENTS.md'],
+  ];
+
+  test('each override variable relocates its instruction file', (t) => {
+    const home = tmpDir(t);
+    for (const [id, varName, suffix] of cases) {
+      const base = path.join(home, `override-${id}`);
+      const result = runCli(home, ['--instructions', '--agents', id], { [varName]: base });
+      assert.equal(result.status, 0, result.stderr);
+
+      const expected = path.join(base, suffix);
+      assert.ok(fs.existsSync(expected), `${id}: expected ${expected}`);
+      const content = fs.readFileSync(expected, 'utf8');
+      assert.ok(content.includes(START_MARKER), `${id}: managed block missing`);
+      assert.ok(result.stdout.includes(varName), `${id}: output must name the variable in use`);
+    }
+  });
+
+  test('a set override leaves the default path untouched', (t) => {
+    const home = tmpDir(t);
+    const result = runCli(home, ['--instructions', '--agents', 'dsh'], {
+      DSH_HOME: path.join(home, 'custom-dsh'),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(fs.existsSync(path.join(home, '.dsh', 'AGENTS.md')), false);
+  });
+
+  test('GEMINI_CLI_HOME separates Gemini CLI from Antigravity CLI', (t) => {
+    const home = tmpDir(t);
+    const base = path.join(home, 'gemini-base');
+    const env = { GEMINI_CLI_HOME: base };
+
+    const sync = runCli(home, ['--agents', 'gemini,agy'], env);
+    assert.equal(sync.status, 0, sync.stderr);
+
+    const geminiFile = path.join(base, '.gemini', 'GEMINI.md');
+    const agyFile = path.join(home, '.gemini', 'GEMINI.md');
+    assert.ok(fs.existsSync(geminiFile), 'gemini follows its override');
+    assert.ok(fs.existsSync(agyFile), 'agy keeps the default path');
+
+    const del = runCli(home, ['--delete', '--agents', 'agy'], env);
+    assert.equal(del.status, 0, del.stderr);
+    assert.equal(del.stdout.includes('also serves'), false, 'files no longer shared');
+    assert.equal(fs.readFileSync(agyFile, 'utf8').includes(START_MARKER), false);
+    assert.ok(fs.readFileSync(geminiFile, 'utf8').includes(START_MARKER));
   });
 });
 
@@ -660,6 +799,15 @@ describe('CLI: skills', () => {
       }
       assert.deepEqual(readManifest(destDir), REPO_SKILLS);
     }
+  });
+
+  test('CLAUDE_CONFIG_DIR relocates the Claude skills destination', (t) => {
+    const home = tmpDir(t);
+    const configDir = path.join(home, 'claude-config');
+    const result = runCli(home, ['--skills', '--agents', 'claude'], { CLAUDE_CONFIG_DIR: configDir });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(fs.existsSync(path.join(configDir, 'skills', 'ro', 'SKILL.md')));
+    assert.equal(fs.existsSync(path.join(home, '.claude', 'skills')), false);
   });
 
   test('re-running --skills reports in-sync and adds no duplicates', (t) => {

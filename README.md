@@ -48,23 +48,25 @@ Opens a two-step interactive picker: what to sync (instruction blocks and/or ski
 
 **Agents and their targets:**
 
-| Agent | Instruction file | Skills destination |
-|-------|------------------|--------------------|
-| Claude Code (`claude`) | `~/.claude/CLAUDE.md` | `~/.claude/skills/` |
-| Codex (`codex`) | `~/.codex/AGENTS.md` | `~/.agents/skills/` (shared) |
-| DeepSeek Harness (`dsh`) | `~/.dsh/AGENTS.md` | `~/.agents/skills/` (shared) |
-| Gemini CLI (`gemini`) | `~/.gemini/GEMINI.md` | `~/.agents/skills/` (shared) |
-| Antigravity CLI (`agy`) | `~/.gemini/GEMINI.md` | `~/.gemini/antigravity-cli/skills/` |
-| OpenCode (`opencode`) | `~/.config/opencode/AGENTS.md` | `~/.agents/skills/` (shared) |
-| Pi (`pi`) | `~/.pi/agent/AGENTS.md` | `~/.agents/skills/` (shared) |
-| Trae CN (`trae-cn`) | `~/.trae-cn/user_rules/agent-dotfiles.md` | `~/.trae-cn/skills/` |
-| ZCode (`zcode`) | `~/.zcode/AGENTS.md` | `~/.agents/skills/` (shared) |
+| Agent | Instruction file | Skills destination | Directory override |
+|-------|------------------|--------------------|--------------------|
+| Claude Code (`claude`) | `~/.claude/CLAUDE.md` | `~/.claude/skills/` | `CLAUDE_CONFIG_DIR` |
+| Codex (`codex`) | `~/.codex/AGENTS.md` | `~/.agents/skills/` (shared) | `CODEX_HOME` |
+| DeepSeek Harness (`dsh`) | `~/.dsh/AGENTS.md` | `~/.agents/skills/` (shared) | `DSH_HOME` |
+| Gemini CLI (`gemini`) | `~/.gemini/GEMINI.md` | `~/.agents/skills/` (shared) | `GEMINI_CLI_HOME` (base directory) |
+| Antigravity CLI (`agy`) | `~/.gemini/GEMINI.md` | `~/.gemini/antigravity-cli/skills/` | — |
+| OpenCode (`opencode`) | `~/.config/opencode/AGENTS.md` | `~/.agents/skills/` (shared) | `XDG_CONFIG_HOME` |
+| Pi (`pi`) | `~/.pi/agent/AGENTS.md` | `~/.agents/skills/` (shared) | `PI_CODING_AGENT_DIR` |
+| Trae CN (`trae-cn`) | `~/.trae-cn/user_rules/agent-dotfiles.md` | `~/.trae-cn/skills/` | — |
+| ZCode (`zcode`) | `~/.zcode/AGENTS.md` | `~/.agents/skills/` (shared) | — |
 
 `~/.agents/skills/` is the shared directory: one sync covers ZCode, Codex, OpenCode, Gemini CLI, pi, and dsh. Skills are the cross-agent primitive — invocable as slash commands in ZCode, pi, Antigravity CLI, and Claude Code; via `/skills` or `$name` in Codex; via the `opencode/slash` metadata flag in OpenCode.
 
-> dsh (DeepSeek Harness) reads its user-global instructions from `$DSH_HOME/AGENTS.md` (default `~/.dsh/AGENTS.md`); keep `DSH_HOME` unset or pointing at `~/.dsh`. Its `~/.agents/skills` discovery has been verified live (October 2026).
+> Directory overrides are honored when set: `CLAUDE_CONFIG_DIR` (including the Claude skills directory), `CODEX_HOME`, `DSH_HOME`, `GEMINI_CLI_HOME`, `XDG_CONFIG_HOME`, and `PI_CODING_AGENT_DIR`. `GEMINI_CLI_HOME` is a base directory, so the instruction file moves to `$GEMINI_CLI_HOME/.gemini/GEMINI.md`. OpenCode honors `XDG_CONFIG_HOME` in its implementation, although its documentation lists only `~/.config/opencode`. Antigravity CLI, Trae CN, and ZCode document no override variable, so their paths stay fixed.
 >
-> agy (Antigravity CLI) shares the Gemini CLI instruction file — selecting both writes it once, and deleting requires including both.
+> When `GEMINI_CLI_HOME` is set, Gemini CLI and Antigravity CLI no longer share a file: Gemini follows the override while Antigravity keeps `~/.gemini/GEMINI.md`. The script writes each path once and treats them as independent files for deletion; without the variable they share one file, which is written once and deleted only when both agents are included.
+>
+> dsh (DeepSeek Harness) reads its user-global instructions from `$DSH_HOME/AGENTS.md` (default `~/.dsh/AGENTS.md`). Its `~/.agents/skills` discovery has been verified live (October 2026).
 
 ## What's Inside the Template
 
@@ -117,6 +119,7 @@ node scripts/sync-agent-config.js --skills --delete --agents all  # One kind, ev
 - Skills ownership: `.agent-dotfiles-manifest.json` in each destination records managed skills — foreign skills are never overwritten or pruned, skills removed from the repository are pruned on the next sync, and unowned same-name skills are reported and skipped
 - Symlink policy: symlinked targets are skipped with a warning by default (stow-style setups are never taken over); `--follow-symlinks` writes through links, deduplicating agents that share one file; deletion refuses to touch a shared file unless every sharer is included
 - `--dry-run` previews without writing; `~` expands cross-platform
+- Directory overrides: `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `DSH_HOME`, `GEMINI_CLI_HOME`, `XDG_CONFIG_HOME`, and `PI_CODING_AGENT_DIR` are honored when set; output shows the resolved path followed by `(via VARIABLE)`
 - Tests: `npm test` (Node's built-in test runner, no dependencies)
 
 

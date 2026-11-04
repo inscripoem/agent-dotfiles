@@ -58,14 +58,18 @@ const readline = require('readline');
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SOURCE_FILE = path.join(REPO_ROOT, 'AGENTS.template.md');
 
+// Each target may declare a directory-override variable. `path` is the
+// default (and the value shown in documentation); `envPath` is the template
+// used when the variable is set. Gemini's override is a base directory, so its
+// config moves one level down into <base>/.gemini.
 const TARGETS = [
-  { id: 'claude',   agent: 'Claude Code',      path: '~/.claude/CLAUDE.md' },
-  { id: 'codex',    agent: 'Codex',            path: '~/.codex/AGENTS.md' },
-  { id: 'dsh',      agent: 'DeepSeek Harness', path: '~/.dsh/AGENTS.md' },
-  { id: 'gemini',   agent: 'Gemini CLI',       path: '~/.gemini/GEMINI.md' },
+  { id: 'claude',   agent: 'Claude Code',      path: '~/.claude/CLAUDE.md',   envVar: 'CLAUDE_CONFIG_DIR', envPath: '$CLAUDE_CONFIG_DIR/CLAUDE.md' },
+  { id: 'codex',    agent: 'Codex',            path: '~/.codex/AGENTS.md',    envVar: 'CODEX_HOME',        envPath: '$CODEX_HOME/AGENTS.md' },
+  { id: 'dsh',      agent: 'DeepSeek Harness', path: '~/.dsh/AGENTS.md',      envVar: 'DSH_HOME',          envPath: '$DSH_HOME/AGENTS.md' },
+  { id: 'gemini',   agent: 'Gemini CLI',       path: '~/.gemini/GEMINI.md',   envVar: 'GEMINI_CLI_HOME',   envPath: '$GEMINI_CLI_HOME/.gemini/GEMINI.md' },
   { id: 'agy',      agent: 'Antigravity CLI',  path: '~/.gemini/GEMINI.md' },
-  { id: 'opencode', agent: 'OpenCode',         path: '~/.config/opencode/AGENTS.md' },
-  { id: 'pi',       agent: 'Pi (pi.dev)',      path: '~/.pi/agent/AGENTS.md' },
+  { id: 'opencode', agent: 'OpenCode',         path: '~/.config/opencode/AGENTS.md', envVar: 'XDG_CONFIG_HOME', envPath: '$XDG_CONFIG_HOME/opencode/AGENTS.md' },
+  { id: 'pi',       agent: 'Pi (pi.dev)',      path: '~/.pi/agent/AGENTS.md', envVar: 'PI_CODING_AGENT_DIR', envPath: '$PI_CODING_AGENT_DIR/AGENTS.md' },
   { id: 'trae-cn',  agent: 'Trae CN',          path: '~/.trae-cn/user_rules/agent-dotfiles.md' },
   { id: 'zcode',    agent: 'ZCode',            path: '~/.zcode/AGENTS.md' },
 ];
@@ -140,6 +144,12 @@ Agents (instruction file → skills destination):
   selecting both writes it once.
 
 Notes:
+  Directory overrides are honored when set: CLAUDE_CONFIG_DIR, CODEX_HOME,
+  DSH_HOME, GEMINI_CLI_HOME (a base directory; config lives in <base>/.gemini),
+  XDG_CONFIG_HOME, and PI_CODING_AGENT_DIR. Antigravity CLI, Trae CN, and ZCode
+  document no override variable, so their paths stay fixed; output shows the
+  resolved path and the variable that produced it.
+
   Instruction blocks are marked blocks inside each agent's global config;
   updates rewrite only that block. Skills are copied from <repo>/skills/ and
   tracked via .agent-dotfiles-manifest.json in each destination — skills not
@@ -151,10 +161,32 @@ Notes:
 }
 
 function expandHome(filePath) {
-  if (filePath.startsWith('~/')) {
+  if (filePath === '~') {
+    return os.homedir();
+  }
+  if (filePath.startsWith('~/') || filePath.startsWith('~\\')) {
     return path.join(os.homedir(), filePath.slice(2));
   }
   return filePath;
+}
+
+// Resolve a target (instruction file or skills directory) to a concrete path.
+// An override variable wins when it is set; otherwise the default `path` is
+// used. Using a replacer function keeps `$` characters in the value literal.
+function resolveTargetPath(target) {
+  const value = target.envVar ? process.env[target.envVar] : '';
+  if (!value) {
+    return expandHome(target.path);
+  }
+  return path.normalize(expandHome(target.envPath.replace(`$${target.envVar}`, () => value)));
+}
+
+// Path plus the variable that produced it, for status and sync output.
+function describeTargetPath(target) {
+  const resolved = resolveTargetPath(target);
+  return target.envVar && process.env[target.envVar]
+    ? `${resolved} (via ${target.envVar})`
+    : resolved;
 }
 
 // lstat (not existsSync) so dangling links are detected too
@@ -307,7 +339,7 @@ const SKILLS_MANIFEST_NAME = '.agent-dotfiles-manifest.json';
 
 const SKILL_DESTINATIONS = [
   { id: 'shared',  agent: 'Shared (~/.agents)', path: '~/.agents/skills',                 agents: ['zcode', 'codex', 'opencode', 'gemini', 'pi', 'dsh'] },
-  { id: 'claude',  agent: 'Claude Code',        path: '~/.claude/skills',                 agents: ['claude'] },
+  { id: 'claude',  agent: 'Claude Code',        path: '~/.claude/skills', envVar: 'CLAUDE_CONFIG_DIR', envPath: '$CLAUDE_CONFIG_DIR/skills', agents: ['claude'] },
   { id: 'trae-cn', agent: 'Trae CN',            path: '~/.trae-cn/skills',                agents: ['trae-cn'] },
   { id: 'agy',     agent: 'Antigravity CLI',    path: '~/.gemini/antigravity-cli/skills', agents: ['agy'] },
 ];
@@ -435,14 +467,15 @@ function runSkillsSync(opts, destinations = SKILL_DESTINATIONS, { pruneOthers = 
   }
 
   const outcomes = new Map();
-  const pathWidth = Math.max(...destinations.map(d => d.path.length));
+  const pathWidth = Math.max(...destinations.map(d => describeTargetPath(d).length));
 
   for (const dest of destinations) {
-    const destDir = expandHome(dest.path);
+    const destDir = resolveTargetPath(dest);
+    const shownPath = describeTargetPath(dest);
     try {
       if (!fs.existsSync(destDir)) {
         if (opts.dryRun) {
-          notes.push(`• ${dest.path}: directory would be created`);
+          notes.push(`• ${shownPath}: directory would be created`);
         } else {
           fs.mkdirSync(destDir, { recursive: true });
         }
@@ -465,12 +498,12 @@ function runSkillsSync(opts, destinations = SKILL_DESTINATIONS, { pruneOthers = 
           text = skip.reason === 'foreign' ? 'foreign — not managed' : 'skipped (symlink)';
         }
         if (!outcomes.has(name)) outcomes.set(name, []);
-        outcomes.get(name).push({ dest, icon, text });
+        outcomes.get(name).push({ dest, shownPath, icon, text });
       }
 
       if (plan.prune.length > 0) {
         uninstallSkills(destDir, plan.prune, { dryRun: opts.dryRun });
-        notes.push(`- ${dest.path}: pruned ${plan.prune.join(', ')} (no longer in source)`);
+        notes.push(`- ${shownPath}: pruned ${plan.prune.join(', ')} (no longer in source)`);
       }
       if (!opts.dryRun) {
         // Skipped skills stay unowned so they are never overwritten or pruned later.
@@ -478,7 +511,7 @@ function runSkillsSync(opts, destinations = SKILL_DESTINATIONS, { pruneOthers = 
         writeManifest(destDir, skillNames.filter(n => !skipped.has(n)));
       }
     } catch (err) {
-      notes.push(`✗ ${dest.path}: ${err.message}`);
+      notes.push(`✗ ${shownPath}: ${err.message}`);
     }
   }
 
@@ -490,7 +523,7 @@ function runSkillsSync(opts, destinations = SKILL_DESTINATIONS, { pruneOthers = 
     const leaves = outcomes.get(name) ?? [];
     leaves.forEach((leaf, leafIndex) => {
       const leafBranch = leafIndex === leaves.length - 1 ? '└──' : '├──';
-      console.log(`${childPrefix}${leafBranch} ${leaf.dest.path.padEnd(pathWidth)}  ${leaf.icon} ${leaf.text}`);
+      console.log(`${childPrefix}${leafBranch} ${leaf.shownPath.padEnd(pathWidth)}  ${leaf.icon} ${leaf.text}`);
     });
   });
 
@@ -502,20 +535,21 @@ function runSkillsSync(opts, destinations = SKILL_DESTINATIONS, { pruneOthers = 
 // Remove managed skills in one destination; returns note lines (no output).
 function clearManagedSkills(dest, opts) {
   const notes = [];
-  const destDir = expandHome(dest.path);
+  const destDir = resolveTargetPath(dest);
+  const shownPath = describeTargetPath(dest);
   try {
     const managed = readManifest(destDir);
     const linked = managed.filter(n => isSymlink(path.join(destDir, n)));
     const removable = managed.filter(n => !linked.includes(n));
     if (managed.length === 0 && !fs.existsSync(path.join(destDir, SKILLS_MANIFEST_NAME))) {
-      notes.push(`∅ ${dest.path}: no managed skills`);
+      notes.push(`∅ ${shownPath}: no managed skills`);
       return notes;
     }
     if (removable.length > 0) {
       uninstallSkills(destDir, removable, { dryRun: opts.dryRun });
-      notes.push(`~ ${dest.path}: removed ${removable.join(', ')}`);
+      notes.push(`~ ${shownPath}: removed ${removable.join(', ')}`);
     } else {
-      notes.push(`∅ ${dest.path}: nothing removable`);
+      notes.push(`∅ ${shownPath}: nothing removable`);
     }
     if (!opts.dryRun) {
       if (linked.length > 0) {
@@ -525,10 +559,10 @@ function clearManagedSkills(dest, opts) {
       }
     }
     for (const name of linked) {
-      notes.push(`→ ${dest.path}/${name}: now a symlink — left untouched, dropped from manifest`);
+      notes.push(`→ ${shownPath}/${name}: now a symlink — left untouched, dropped from manifest`);
     }
   } catch (err) {
-    notes.push(`✗ ${dest.path}: ${err.message}`);
+    notes.push(`✗ ${shownPath}: ${err.message}`);
   }
   return notes;
 }
@@ -548,14 +582,14 @@ function runSkillsStatus(opts, destinations = SKILL_DESTINATIONS) {
     return;
   }
 
-  const pathWidth = Math.max(...destinations.map(d => d.path.length));
+  const pathWidth = Math.max(...destinations.map(d => describeTargetPath(d).length));
   skillNames.forEach((name, skillIndex) => {
     const skillBranch = skillIndex === skillNames.length - 1 ? '└──' : '├──';
     const childPrefix = skillIndex === skillNames.length - 1 ? '    ' : '│   ';
     console.log(`${skillBranch} ${name}`);
 
     destinations.forEach((dest, destIndex) => {
-      const destDir = expandHome(dest.path);
+      const destDir = resolveTargetPath(dest);
       const state = skillState(destDir, SKILLS_SOURCE_DIR, name, readManifest(destDir));
       const symbols = {
         'in-sync': '✓', 'stale': '~', 'missing': '+', 'foreign': '!', 'symlink': '→',
@@ -563,16 +597,16 @@ function runSkillsStatus(opts, destinations = SKILL_DESTINATIONS) {
       const symbol = symbols[state] ?? '!';
       const branch = destIndex === destinations.length - 1 ? '└──' : '├──';
       console.log(
-        `${childPrefix}${branch} ${dest.path.padEnd(pathWidth)}  ${symbol} ${state}  ← ${dest.agents.join(', ')}`,
+        `${childPrefix}${branch} ${describeTargetPath(dest).padEnd(pathWidth)}  ${symbol} ${state}  ← ${dest.agents.join(', ')}`,
       );
     });
   });
 
   for (const dest of destinations) {
-    const destDir = expandHome(dest.path);
+    const destDir = resolveTargetPath(dest);
     const orphaned = readManifest(destDir).filter(n => !skillNames.includes(n));
     if (orphaned.length > 0) {
-      console.log(`  ! managed but no longer in source, pruned on next sync: ${orphaned.join(', ')} (${dest.path})`);
+      console.log(`  ! managed but no longer in source, pruned on next sync: ${orphaned.join(', ')} (${describeTargetPath(dest)})`);
     }
   }
 }
@@ -745,7 +779,7 @@ function runStatus(targets, opts) {
   const idWidth = Math.max(...targets.map(t => t.id.length));
 
   targets.forEach((target, index) => {
-    const targetPath = expandHome(target.path);
+    const targetPath = resolveTargetPath(target);
     let symbol;
     let text;
 
@@ -767,7 +801,7 @@ function runStatus(targets, opts) {
     }
 
     const branch = index === targets.length - 1 ? '└──' : '├──';
-    console.log(`${branch} ${target.id.padEnd(idWidth)}  ${symbol} ${text}  ${target.path}`);
+    console.log(`${branch} ${target.id.padEnd(idWidth)}  ${symbol} ${text}  ${describeTargetPath(target)}`);
   });
 }
 
@@ -783,19 +817,20 @@ function renderIdTree(rows) {
 
 function runDelete(targets, opts) {
   const deleteSet = new Set(targets);
-  const reals = new Map(TARGETS.map(t => [t.id, resolveTarget(expandHome(t.path))]));
+  const reals = new Map(TARGETS.map(t => [t.id, resolveTarget(resolveTargetPath(t))]));
   const rows = [];
 
   for (const target of targets) {
-    const targetPath = expandHome(target.path);
+    const targetPath = resolveTargetPath(target);
+    const shownPath = describeTargetPath(target);
     try {
       if (isSymlink(targetPath) && !opts.follow) {
-        rows.push({ id: target.id, symbol: '→', text: 'skipped (symlink)', path: target.path });
+        rows.push({ id: target.id, symbol: '→', text: 'skipped (symlink)', path: shownPath });
         continue;
       }
 
       if (!fs.existsSync(targetPath)) {
-        rows.push({ id: target.id, symbol: '∅', text: 'file does not exist', path: target.path });
+        rows.push({ id: target.id, symbol: '∅', text: 'file does not exist', path: shownPath });
         continue;
       }
 
@@ -803,15 +838,15 @@ function runDelete(targets, opts) {
       const sharers = TARGETS.filter(o => o.id !== target.id && !deleteSet.has(o) && reals.get(o.id) === real);
       if (sharers.length > 0) {
         const names = sharers.map(s => s.agent).join(', ');
-        rows.push({ id: target.id, symbol: '!', text: `shared file also serves ${names} — include them or break the link`, path: target.path });
+        rows.push({ id: target.id, symbol: '!', text: `shared file also serves ${names} — include them or break the link`, path: shownPath });
         continue;
       }
 
       const result = removeBlock(targetPath, { dryRun: opts.dryRun });
       const symbol = result.action === 'removed' || result.action === 'cleared' ? '~' : '∅';
-      rows.push({ id: target.id, symbol, text: result.message, path: target.path });
+      rows.push({ id: target.id, symbol, text: result.message, path: shownPath });
     } catch (err) {
-      rows.push({ id: target.id, symbol: '✗', text: err.message, path: target.path });
+      rows.push({ id: target.id, symbol: '✗', text: err.message, path: describeTargetPath(target) });
     }
   }
 
@@ -833,15 +868,16 @@ function runSync(selectedTargets, interactive, opts) {
   if (interactive || opts.prune) {
     const unselectedTargets = TARGETS.filter(t => !selectedTargets.includes(t));
     for (const target of unselectedTargets) {
-      const targetPath = expandHome(target.path);
+      const targetPath = resolveTargetPath(target);
+      const shownPath = describeTargetPath(target);
       try {
         if (isSymlink(targetPath) && !opts.follow) {
-          rows.push({ id: target.id, symbol: '→', text: 'skipped (symlink)', path: target.path });
+          rows.push({ id: target.id, symbol: '→', text: 'skipped (symlink)', path: shownPath });
           continue;
         }
         const result = removeBlock(targetPath, { dryRun: opts.dryRun });
         if (result.action === 'removed' || result.action === 'cleared') {
-          rows.push({ id: target.id, symbol: '-', text: 'removed (not selected)', path: target.path });
+          rows.push({ id: target.id, symbol: '-', text: 'removed (not selected)', path: shownPath });
         }
       } catch (err) {
         console.error(`  ✗ ${target.agent}: ${err.message}`);
@@ -854,18 +890,19 @@ function runSync(selectedTargets, interactive, opts) {
   const writtenReals = new Map();
 
   for (const target of selectedTargets) {
-    const targetPath = expandHome(target.path);
+    const targetPath = resolveTargetPath(target);
+    const shownPath = describeTargetPath(target);
     try {
       const linked = isSymlink(targetPath);
       if (linked && !opts.follow) {
-        rows.push({ id: target.id, symbol: '→', text: 'skipped (symlink)', path: target.path });
+        rows.push({ id: target.id, symbol: '→', text: 'skipped (symlink)', path: shownPath });
         continue;
       }
 
       const real = resolveTarget(targetPath);
       const owner = writtenReals.get(real);
       if (owner) {
-        rows.push({ id: target.id, symbol: '~', text: `updated (shared with ${owner.agent}, written once)`, path: target.path });
+        rows.push({ id: target.id, symbol: '~', text: `updated (shared with ${owner.agent}, written once)`, path: shownPath });
         continue;
       }
       writtenReals.set(real, target);
@@ -882,12 +919,12 @@ function runSync(selectedTargets, interactive, opts) {
       // Skip the write when the managed block already matches the template,
       // so "updated" always means the content actually changed.
       if (blockState(targetPath, template).state === 'in-sync') {
-        rows.push({ id: target.id, symbol: '=', text: 'in-sync', path: target.path });
+        rows.push({ id: target.id, symbol: '=', text: 'in-sync', path: shownPath });
         continue;
       }
 
       const action = syncFile(targetPath, template, { dryRun: opts.dryRun });
-      rows.push({ id: target.id, symbol: action === 'updated' ? '~' : '+', text: action, path: target.path });
+      rows.push({ id: target.id, symbol: action === 'updated' ? '~' : '+', text: action, path: shownPath });
     } catch (err) {
       console.error(`  ✗ ${target.agent}: ${err.message}`);
     }
@@ -1022,6 +1059,8 @@ module.exports = {
   SKILLS_MANIFEST_NAME,
   SKILL_DESTINATIONS,
   expandHome,
+  resolveTargetPath,
+  describeTargetPath,
   isSymlink,
   resolveTarget,
   wrapContent,
