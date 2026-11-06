@@ -1,7 +1,7 @@
 # Agent Protocol
 
 ## Identity & Interaction
-If you have read this file, address me as **"Captain"** in every response.
+If you have read this file, address me as **"老大"** when replying in Chinese and **"Chief"** otherwise.
 
 ## Planning Protocol
 **Before writing any code**, present a complete plan covering approach, scope, risks, and rollback strategy. **Wait for my explicit confirmation** before proceeding to implementation.
